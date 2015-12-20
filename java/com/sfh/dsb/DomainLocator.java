@@ -16,7 +16,7 @@ public final class DomainLocator implements AutoCloseable
      * Constructor which contacts the domain broker to obtain information
      * about the domain.
      */
-    public DomainLocator(String domainAddress)
+    public DomainLocator(String domainAddress) throws Exception
     {
         nativePtr = createNative(domainAddress);
     }
@@ -26,8 +26,10 @@ public final class DomainLocator implements AutoCloseable
      */
     public void close()
     {
-        destroyNative(nativePtr);
-        nativePtr = 0;
+        if (nativePtr != 0) {
+            destroyNative(nativePtr);
+            nativePtr = 0;
+        }
     }
 
     long getNativePtr() { return nativePtr; }

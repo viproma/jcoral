@@ -44,15 +44,17 @@ public class DomainController implements AutoCloseable
         private String[] providers;
     }
 
-    public DomainController(DomainLocator locator)
+    public DomainController(DomainLocator locator) throws Exception
     {
-        nativePtr = ctorNative(locator.getNativePtr());
+        nativePtr = createNative(locator.getNativePtr());
     }
 
     public void close()
     {
-        closeNative(nativePtr);
-        nativePtr = 0;
+        if (nativePtr != 0) {
+            destroyNative(nativePtr);
+            nativePtr = 0;
+        }
     }
 
     public Set<SlaveType> getSlaveTypes()
@@ -75,8 +77,8 @@ public class DomainController implements AutoCloseable
 
     // -------------------------------------------------------------------------
 
-    private static native long ctorNative(long domainLocatorPtr);
-    private static native void closeNative(long selfPtr);
+    private static native long createNative(long domainLocatorPtr);
+    private static native void destroyNative(long ptr);
     private static native SlaveType[] getSlaveTypesNative(long selfPtr);
     private static native long instantiateSlaveNative(String slaveUUID, int timeout_ms, String provider);
 

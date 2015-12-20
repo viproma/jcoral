@@ -20,14 +20,17 @@ set(normalClasses
 # ==============================================================================
 
 set(javaFiles)
+set(classFiles)
 foreach(class ${nativeClasses} ${normalClasses})
     string(REPLACE "." "/" s "${class}")
-    list(APPEND javaFiles  "${CMAKE_CURRENT_SOURCE_DIR}/${s}.java")
+    list(APPEND javaFiles "${CMAKE_CURRENT_SOURCE_DIR}/${s}.java")
+    list(APPEND classFiles "classes/${s}.class")
 endforeach()
 add_custom_command(
-    OUTPUT "classes"
+    OUTPUT ${classFiles}
     COMMAND "${CMAKE_COMMAND}" "-E" "make_directory" "classes"
     COMMAND "${Java_JAVAC_EXECUTABLE}" "-d" "classes" ${javaFiles}
+    DEPENDS ${javaFiles}
     VERBATIM
 )
 
@@ -36,7 +39,7 @@ add_custom_command(
     OUTPUT "${jarFilename}"
     COMMAND "${Java_JAR_EXECUTABLE}" "cf" "${CMAKE_CURRENT_BINARY_DIR}/${jarFilename}" "*"
     WORKING_DIRECTORY "classes"
-    DEPENDS "classes"
+    DEPENDS ${classFiles}
 )
 
 add_custom_target(jar DEPENDS "${jarFilename}")
@@ -44,7 +47,6 @@ set_target_properties(jar PROPERTIES
     ARCHIVE_OUTPUT_NAME "${jarFilename}"
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )
-
 
 # ==============================================================================
 # Target: headers
@@ -61,7 +63,7 @@ foreach(class ${nativeClasses})
     add_custom_command(
         OUTPUT ${h}
         COMMAND "${Java_JAVAH_EXECUTABLE}" "-d" "${jniHeaderDir}" "-classpath" "${jarFilename}" "${class}"
-        DEPENDS jar
+        DEPENDS ${jarFilename}
         VERBATIM
     )
 endforeach()

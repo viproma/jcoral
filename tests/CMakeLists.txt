@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.0.0)
 
-set(tests "A")
+set(tests
+    "DomainControllerTest"
+    "DomainLocatorErrorTest"
+)
 
 if (WIN32)
     set(pathSep ";")

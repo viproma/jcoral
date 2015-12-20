@@ -4,6 +4,7 @@ enable_testing()
 
 find_package(Java 1.7 REQUIRED)
 find_package(JNI REQUIRED)
+find_package(dsb REQUIRED)
 
 set(jniHeaderDir "${CMAKE_BINARY_DIR}/jni")
 
