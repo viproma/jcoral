@@ -521,7 +521,7 @@ JNIEXPORT void JNICALL Java_com_sfh_dsb_DomainLocator_destroyNative(
 // SlaveLocator
 // =============================================================================
 
-JNIEXPORT void JNICALL Java_com_sfh_dsb_SlaveLocator_closeNative(
+JNIEXPORT void JNICALL Java_com_sfh_dsb_SlaveLocator_destroyNative(
     JNIEnv* env,
     jclass,
     jlong selfPtr)

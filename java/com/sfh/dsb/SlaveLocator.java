@@ -17,13 +17,15 @@ public final class SlaveLocator implements AutoCloseable
     }
 
     public void close() {
-        closeNative(nativePtr);
-        nativePtr = 0;
+        if (nativePtr != 0) {
+            destroyNative(nativePtr);
+            nativePtr = 0;
+        }
     }
 
     long getNativePtr() { return nativePtr; }
 
-    private static native void closeNative(long selfPtr);
+    private static native void destroyNative(long selfPtr);
 
-    private long nativePtr;
+    private long nativePtr = 0;
 }
