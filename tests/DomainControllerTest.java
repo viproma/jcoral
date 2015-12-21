@@ -1,7 +1,10 @@
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import com.sfh.dsb.DomainController;
 import com.sfh.dsb.DomainLocator;
+import com.sfh.dsb.SlaveLocator;
 import com.sfh.dsb.VariableDescription;
 
 
@@ -12,9 +15,12 @@ public class DomainControllerTest
         try (DomainLocator domLoc = new DomainLocator("tcp://localhost")) {
         try (DomainController dom = new DomainController(domLoc)) {
             Thread.sleep(2000);
-            Set<DomainController.SlaveType> slaveTypes = dom.getSlaveTypes();
-            System.out.format("Number of slave types: %d\n", slaveTypes.size());
-            for (DomainController.SlaveType st : slaveTypes) {
+            Set<DomainController.SlaveType> slaveTypeSet = dom.getSlaveTypes();
+            System.out.format("Number of slave types: %d\n", slaveTypeSet.size());
+            Map<String, DomainController.SlaveType> slaveTypes =
+                new HashMap<String, DomainController.SlaveType>();
+            for (DomainController.SlaveType st : slaveTypeSet) {
+                slaveTypes.put(st.getName(), st);
                 System.out.println(st.getName());
                 System.out.println("  " + st.getUUID());
                 System.out.println("  " + st.getDescription());
@@ -31,6 +37,11 @@ public class DomainControllerTest
                 Iterator<String> providers = st.getProviders();
                 while (providers.hasNext()) System.out.println("    " + providers.next() + "; ");
             }
+
+            SlaveLocator slaveLoc = dom.instantiateSlave(
+                slaveTypes.get("sfh.larky.identity"),
+                2000 /*ms*/);
+            slaveLoc.close();
         }}
     }
 

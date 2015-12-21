@@ -67,7 +67,7 @@ public class DomainController implements AutoCloseable
         SlaveType slaveType, int timeout_ms, String provider)
     {
         return new SlaveLocator(instantiateSlaveNative(
-            slaveType.getName(), timeout_ms, provider));
+            nativePtr, slaveType.getUUID(), timeout_ms, provider));
     }
 
     public SlaveLocator instantiateSlave(SlaveType slaveType, int timeout_ms)
@@ -80,7 +80,7 @@ public class DomainController implements AutoCloseable
     private static native long createNative(long domainLocatorPtr);
     private static native void destroyNative(long ptr);
     private static native SlaveType[] getSlaveTypesNative(long selfPtr);
-    private static native long instantiateSlaveNative(String slaveUUID, int timeout_ms, String provider);
+    private static native long instantiateSlaveNative(long selfPtr, String slaveUUID, int timeout_ms, String provider);
 
     private long nativePtr;
 }

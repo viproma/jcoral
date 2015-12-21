@@ -458,6 +458,33 @@ JNIEXPORT jobjectArray JNICALL Java_com_sfh_dsb_DomainController_getSlaveTypesNa
     }
 }
 
+JNIEXPORT jlong JNICALL Java_com_sfh_dsb_DomainController_instantiateSlaveNative(
+    JNIEnv* env,
+    jclass,
+    jlong selfPtr,
+    jstring slaveUUID,
+    jint timeout_ms,
+    jstring provider)
+{
+    if (!JEnforceNotNull(env, selfPtr)) return 0;
+    auto dom = reinterpret_cast<dsb::domain::Controller*>(selfPtr);
+    const auto cSlaveUUID = ToString(env, slaveUUID);
+    if (!cSlaveUUID) return 0;
+    const auto cProvider = ToString(env, provider);
+    if (!cProvider) return 0;
+    try {
+        const auto slaveLoc = new dsb::net::SlaveLocator(
+            dom->InstantiateSlave(
+                cSlaveUUID.get(),
+                boost::chrono::milliseconds(timeout_ms),
+                cProvider.get()));
+        return reinterpret_cast<jlong>(slaveLoc);
+    } catch (const std::exception& e) {
+        ThrowJException(env, "java/lang/Exception", e.what());
+        return 0;
+    }
+}
+
 
 // =============================================================================
 // DomainLocator
@@ -499,5 +526,5 @@ JNIEXPORT void JNICALL Java_com_sfh_dsb_SlaveLocator_closeNative(
     jclass,
     jlong selfPtr)
 {
-    std::cout << "SlaveLocator.closeNative(" << reinterpret_cast<const char*>(selfPtr) << ')' << std::endl;
+    delete reinterpret_cast<dsb::net::SlaveLocator*>(selfPtr);
 }
