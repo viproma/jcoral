@@ -101,6 +101,34 @@ namespace
         return env->NewStringUTF(cppString.c_str());
     }
 
+    // Gets the field named `fieldName` from the Java enum class named `enumName`.
+    jobject GetEnumField(JNIEnv* env, const char* enumName, const char* fieldName)
+    {
+        const auto clazz = env->FindClass(enumName);
+        if (!clazz) return nullptr;
+        const auto signature = 'L' + std::string(enumName) + ';';
+        const auto id = env->GetStaticFieldID(clazz, fieldName, signature.c_str());
+        JDSB_REQUIRE(env, id);
+        const auto value = env->GetStaticObjectField(clazz, id);
+        JDSB_REQUIRE(env, value);
+        return value;
+    }
+
+    // Sets the field named `fieldName`, which must be of type `int`,
+    // in object `object` to `value`.
+    void SetField(
+        JNIEnv* env,
+        jobject object,
+        const char* fieldName,
+        jint value)
+    {
+        jclass clazz = env->GetObjectClass(object);
+        JDSB_REQUIRE(env, clazz);
+        jfieldID field = env->GetFieldID(clazz, fieldName, "I");
+        JDSB_REQUIRE(env, field);
+        env->SetIntField(object, field, value);
+    }
+
     // Sets the field named `fieldName`, having the type signature `fieldSig`,
     // in object `object`, to `value`.
     void SetField(
@@ -117,7 +145,7 @@ namespace
         env->SetObjectField(object, field, value);
     }
 
-    // Sets the field name `fieldName`, which must be of type `String`,
+    // Sets the field named `fieldName`, which must be of type `String`,
     // in object `object`, to the value of `cValue`.
     // If the operation fails, a Java exception is thrown and the function
     // returns `false`.
@@ -192,6 +220,171 @@ JNIEXPORT void JNICALL Java_com_sfh_dsb_DomainController_destroyNative(
 
 namespace
 {
+    class DataTypeConverter
+    {
+    public:
+        static Maybe<DataTypeConverter> Create(JNIEnv* env)
+        {
+            auto jClass = env->FindClass("com/sfh/dsb/DataType");
+            if (!jClass) return Maybe<DataTypeConverter>();
+
+            DataTypeConverter ret;
+            ret.env_ = env;
+            ret.real_ = GetEnumField(env, "com/sfh/dsb/DataType", "REAL");
+            if (!ret.real_) return Maybe<DataTypeConverter>();
+            ret.integer_ = GetEnumField(env, "com/sfh/dsb/DataType", "INTEGER");
+            if (!ret.integer_) return Maybe<DataTypeConverter>();
+            ret.boolean_ = GetEnumField(env, "com/sfh/dsb/DataType", "BOOLEAN");
+            if (!ret.boolean_) return Maybe<DataTypeConverter>();
+            ret.string_ = GetEnumField(env, "com/sfh/dsb/DataType", "STRING");
+            if (!ret.string_) return Maybe<DataTypeConverter>();
+
+            return Actually(ret);
+        }
+
+        DataTypeConverter() { }
+
+        jobject JavaValue(dsb::model::DataType dt) const
+        {
+            switch (dt) {
+                case dsb::model::REAL_DATATYPE:     return real_;
+                case dsb::model::INTEGER_DATATYPE:  return integer_;
+                case dsb::model::BOOLEAN_DATATYPE:  return boolean_;
+                case dsb::model::STRING_DATATYPE:   return string_;
+                default:
+                    JDSB_REQUIRE(env_, false);
+                    return nullptr; // never get here
+            }
+        }
+
+    private:
+        JNIEnv* env_;
+        jobject real_;
+        jobject integer_;
+        jobject boolean_;
+        jobject string_;
+    };
+
+    class CausalityConverter
+    {
+    public:
+        static Maybe<CausalityConverter> Create(JNIEnv* env)
+        {
+            auto jClass = env->FindClass("com/sfh/dsb/Causality");
+            if (!jClass) return Maybe<CausalityConverter>();
+
+            CausalityConverter ret;
+            ret.env_ = env;
+            ret.parameter_ = GetEnumField(env, "com/sfh/dsb/Causality", "PARAMETER");
+            if (!ret.parameter_) return Maybe<CausalityConverter>();
+            ret.calculatedParameter_ = GetEnumField(env, "com/sfh/dsb/Causality", "CALCULATED_PARAMETER");
+            if (!ret.calculatedParameter_) return Maybe<CausalityConverter>();
+            ret.input_ = GetEnumField(env, "com/sfh/dsb/Causality", "INPUT");
+            if (!ret.input_) return Maybe<CausalityConverter>();
+            ret.output_ = GetEnumField(env, "com/sfh/dsb/Causality", "OUTPUT");
+            if (!ret.output_) return Maybe<CausalityConverter>();
+            ret.local_ = GetEnumField(env, "com/sfh/dsb/Causality", "LOCAL");
+            if (!ret.local_) return Maybe<CausalityConverter>();
+
+            return Actually(ret);
+        }
+
+        CausalityConverter() { }
+
+        jobject JavaValue(dsb::model::Causality c) const
+        {
+            switch (c) {
+                case dsb::model::PARAMETER_CAUSALITY:            return parameter_;
+                case dsb::model::CALCULATED_PARAMETER_CAUSALITY: return calculatedParameter_;
+                case dsb::model::INPUT_CAUSALITY:                return input_;
+                case dsb::model::OUTPUT_CAUSALITY:               return output_;
+                case dsb::model::LOCAL_CAUSALITY:                return local_;
+                default:
+                    JDSB_REQUIRE(env_, false);
+                    return nullptr; // never get here
+            }
+        }
+
+    private:
+        JNIEnv* env_;
+        jobject parameter_;
+        jobject calculatedParameter_;
+        jobject input_;
+        jobject output_;
+        jobject local_;
+    };
+
+    class VariabilityConverter
+    {
+    public:
+        static Maybe<VariabilityConverter> Create(JNIEnv* env)
+        {
+            auto jClass = env->FindClass("com/sfh/dsb/Variability");
+            if (!jClass) return Maybe<VariabilityConverter>();
+
+            VariabilityConverter ret;
+            ret.env_ = env;
+            ret.constant_ = GetEnumField(env, "com/sfh/dsb/Variability", "CONSTANT");
+            if (!ret.constant_) return Maybe<VariabilityConverter>();
+            ret.fixed_ = GetEnumField(env, "com/sfh/dsb/Variability", "FIXED");
+            if (!ret.fixed_) return Maybe<VariabilityConverter>();
+            ret.tunable_ = GetEnumField(env, "com/sfh/dsb/Variability", "TUNABLE");
+            if (!ret.tunable_) return Maybe<VariabilityConverter>();
+            ret.discrete_ = GetEnumField(env, "com/sfh/dsb/Variability", "DISCRETE");
+            if (!ret.discrete_) return Maybe<VariabilityConverter>();
+            ret.continuous_ = GetEnumField(env, "com/sfh/dsb/Variability", "CONTINUOUS");
+            if (!ret.continuous_) return Maybe<VariabilityConverter>();
+
+            return Actually(ret);
+        }
+
+        VariabilityConverter() { }
+
+        jobject JavaValue(dsb::model::Variability c) const
+        {
+            switch (c) {
+                case dsb::model::CONSTANT_VARIABILITY:   return constant_;
+                case dsb::model::FIXED_VARIABILITY:      return fixed_;
+                case dsb::model::TUNABLE_VARIABILITY:    return tunable_;
+                case dsb::model::DISCRETE_VARIABILITY:   return discrete_;
+                case dsb::model::CONTINUOUS_VARIABILITY: return continuous_;
+                default:
+                    JDSB_REQUIRE(env_, false);
+                    return nullptr; // never get here
+            }
+        }
+
+    private:
+        JNIEnv* env_;
+        jobject constant_;
+        jobject fixed_;
+        jobject tunable_;
+        jobject discrete_;
+        jobject continuous_;
+    };
+
+
+    jobject ToJVariableDescription(
+        JNIEnv* env,
+        const DataTypeConverter& dtConv,
+        const CausalityConverter& csConv,
+        const VariabilityConverter& vbConv,
+        jclass variableDescriptionClass,
+        jmethodID defaultCtor,
+        const dsb::model::VariableDescription& cVarDesc)
+    {
+        auto jVarDesc = env->NewObject(variableDescriptionClass, defaultCtor);
+        if (!jVarDesc) return nullptr;
+
+        SetField(env, jVarDesc, "id", cVarDesc.ID());
+        if (!SetField(env, jVarDesc, "name", cVarDesc.Name())) return nullptr;
+        SetField(env, jVarDesc, "dataType", "Lcom/sfh/dsb/DataType;", dtConv.JavaValue(cVarDesc.DataType()));
+        SetField(env, jVarDesc, "causality", "Lcom/sfh/dsb/Causality;", csConv.JavaValue(cVarDesc.Causality()));
+        SetField(env, jVarDesc, "variability", "Lcom/sfh/dsb/Variability;", vbConv.JavaValue(cVarDesc.Variability()));
+
+        return jVarDesc;
+    }
+
     jobject ToJSlaveType(
         JNIEnv* env,
         jclass slaveTypeClass,
@@ -207,8 +400,31 @@ namespace
         if (!SetField(env, jSlaveType, "author", cSlaveType.author)) return nullptr;
         if (!SetField(env, jSlaveType, "version", cSlaveType.version)) return nullptr;
 
+        const auto vdClass = env->FindClass("com/sfh/dsb/VariableDescription");
+        if (!vdClass) return nullptr;
+        const auto vdCtor = env->GetMethodID(vdClass, "<init>", "()V");
+        JDSB_REQUIRE(env, vdCtor);
+        const auto dtConv = DataTypeConverter::Create(env);
+        JDSB_REQUIRE(env, dtConv);
+        const auto csConv = CausalityConverter::Create(env);
+        JDSB_REQUIRE(env, csConv);
+        const auto vbConv = VariabilityConverter::Create(env);
+        JDSB_REQUIRE(env, vbConv);
+        const auto variables = ToJArray<dsb::model::VariableDescription>(
+            env,
+            vdClass,
+            cSlaveType.variables,
+            [env, vdClass, vdCtor, &dtConv, &csConv, &vbConv]
+                (const dsb::model::VariableDescription& vd)
+            {
+                return ToJVariableDescription(env,
+                    dtConv.get(), csConv.get(), vbConv.get(),
+                    vdClass, vdCtor, vd);
+            });
+        SetField(env, jSlaveType, "variables", "[Lcom/sfh/dsb/VariableDescription;", variables);
+
         auto stringClass = env->FindClass("java/lang/String");
-        assert(stringClass);
+        JDSB_REQUIRE(env, stringClass);
         auto providers = ToJArray<std::string>(env, stringClass, cSlaveType.providers,
             [env] (const std::string& s) { return ToJString(env, s); });
         if (!providers) return nullptr;
