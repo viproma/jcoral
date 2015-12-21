@@ -60,9 +60,15 @@ foreach(class ${nativeClasses})
     string(REPLACE "." "_" s "${class}")
     set(h "${jniHeaderDir}/${s}.h")
     list(APPEND headerFiles "${h}")
+    # Note: We need -force in the following command because javah only
+    # regenerates headers for classes which have been updated, while we
+    # have specified that it should depend on the entire JAR file.
+    # If we don't use -force, some headers will always be older than the
+    # JAR file, and their command will consequently always be run.
     add_custom_command(
         OUTPUT ${h}
-        COMMAND "${Java_JAVAH_EXECUTABLE}" "-d" "${jniHeaderDir}" "-classpath" "${jarFilename}" "${class}"
+        COMMAND "${Java_JAVAH_EXECUTABLE}" "-force" "-d" "${jniHeaderDir}"
+            "-classpath" "${jarFilename}" "${class}"
         DEPENDS ${jarFilename}
         VERBATIM
     )
