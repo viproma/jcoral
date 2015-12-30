@@ -6,10 +6,13 @@
 #include <utility>
 
 #include "dsb/domain/controller.hpp"
+#include "dsb/execution/controller.hpp"
 #include "dsb/net.hpp"
 
 #include "com_sfh_dsb_DomainController.h"
 #include "com_sfh_dsb_DomainLocator.h"
+#include "com_sfh_dsb_ExecutionController.h"
+#include "com_sfh_dsb_ExecutionLocator.h"
 #include "com_sfh_dsb_SlaveLocator.h"
 
 #define JDSB_STRINGIFY(x) #x
@@ -514,6 +517,120 @@ JNIEXPORT void JNICALL Java_com_sfh_dsb_DomainLocator_destroyNative(
     if (JEnforceNotNull(env, ptr)) {
         delete reinterpret_cast<dsb::net::DomainLocator*>(ptr);
     }
+}
+
+
+// =============================================================================
+// ExecutionController
+// =============================================================================
+
+JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_spawnExecutionNative(
+    JNIEnv* env,
+    jclass,
+    jlong domainLocatorPtr,
+    jstring executionName,
+    jint commTimeout_s)
+{
+    if (!JEnforceNotNull(env, domainLocatorPtr)) return 0;
+    const auto cExeName = executionName
+        ? ToString(env, executionName)
+        : Actually(std::string());
+    if (!cExeName) return 0;
+    try {
+        return reinterpret_cast<jlong>(new dsb::net::ExecutionLocator(
+            dsb::execution::SpawnExecution(
+                *reinterpret_cast<dsb::net::DomainLocator*>(domainLocatorPtr),
+                cExeName.get(),
+                boost::chrono::seconds(commTimeout_s))));
+    } catch (const std::exception& e) {
+        ThrowJException(env, "java/lang/Exception", e.what());
+        return 0;
+    }
+}
+
+JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_createNative(
+    JNIEnv* env,
+    jclass,
+    jlong locatorPtr)
+{
+    if (!JEnforceNotNull(env, locatorPtr)) return 0;
+    try {
+        return reinterpret_cast<jlong>(
+            new dsb::execution::Controller(
+                *reinterpret_cast<dsb::net::ExecutionLocator*>(locatorPtr)));
+    } catch (const std::exception& e) {
+        ThrowJException(env, "java/lang/Exception", e.what());
+        return 0;
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_destroyNative(
+    JNIEnv* env,
+    jclass,
+    jlong selfPtr)
+{
+    if (JEnforceNotNull(env, selfPtr)) try {
+        auto exe = reinterpret_cast<dsb::execution::Controller*>(selfPtr);
+        exe->Terminate();
+        delete exe;
+    } catch (const std::exception& e) {
+        ThrowJException(env, "java/lang/Exception", e.what());
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_beginConfigNative(
+    JNIEnv* env, jclass, jlong selfPtr)
+{
+    if (JEnforceNotNull(env, selfPtr)) try {
+        reinterpret_cast<dsb::execution::Controller*>(selfPtr)->BeginConfig();
+    } catch (const std::exception& e) {
+        ThrowJException(env, "java/lang/Exception", e.what());
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_endConfigNative(
+    JNIEnv* env, jclass, jlong selfPtr)
+{
+    if (JEnforceNotNull(env, selfPtr)) try {
+        reinterpret_cast<dsb::execution::Controller*>(selfPtr)->EndConfig();
+    } catch (const std::exception& e) {
+        ThrowJException(env, "java/lang/Exception", e.what());
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_setSimulationTimeNative__JD(
+    JNIEnv* env, jclass, jlong selfPtr, jdouble startTime)
+{
+    if (JEnforceNotNull(env, selfPtr)) try {
+        reinterpret_cast<dsb::execution::Controller*>(selfPtr)
+            ->SetSimulationTime(startTime);
+    } catch (const std::exception& e) {
+        ThrowJException(env, "java/lang/Exception", e.what());
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_setSimulationTimeNative__JDD(
+    JNIEnv* env, jclass, jlong selfPtr, jdouble startTime, jdouble stopTime)
+{
+    if (JEnforceNotNull(env, selfPtr)) try {
+        reinterpret_cast<dsb::execution::Controller*>(selfPtr)
+            ->SetSimulationTime(startTime, stopTime);
+    } catch (const std::exception& e) {
+        ThrowJException(env, "java/lang/Exception", e.what());
+    }
+}
+
+
+// =============================================================================
+// ExecutionLocator
+// =============================================================================
+
+JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionLocator_destroyNative(
+    JNIEnv* env,
+    jclass,
+    jlong selfPtr)
+{
+    delete reinterpret_cast<dsb::net::ExecutionLocator*>(selfPtr);
 }
 
 

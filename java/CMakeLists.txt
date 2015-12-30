@@ -4,6 +4,8 @@ cmake_minimum_required(VERSION 3.0.0)
 set(nativeClasses
     "com.sfh.dsb.DomainController"
     "com.sfh.dsb.DomainLocator"
+    "com.sfh.dsb.ExecutionController"
+    "com.sfh.dsb.ExecutionLocator"
     "com.sfh.dsb.SlaveLocator"
 )
 

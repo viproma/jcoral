@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.0.0)
 set(tests
     "DomainControllerTest"
     "DomainLocatorErrorTest"
+    "ExecutionControllerTest"
 )
 
 if (WIN32)
