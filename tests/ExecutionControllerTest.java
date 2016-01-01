@@ -3,6 +3,8 @@ import java.util.Map;
 import com.sfh.dsb.DomainController;
 import com.sfh.dsb.DomainLocator;
 import com.sfh.dsb.ExecutionController;
+import com.sfh.dsb.Future;
+import com.sfh.dsb.SlaveID;
 import com.sfh.dsb.SlaveLocator;
 
 
@@ -27,10 +29,13 @@ public class ExecutionControllerTest
         exe.setSimulationTime(200.0);
 
         // Instantiate a slave
-        SlaveLocator slaveLoc = dom.instantiateSlave(
-            slaveTypes.get("sfh.larky.identity"),
-            2000 /*ms*/);
-        slaveLoc.close();
-        }}}
+        try (SlaveLocator slaveLoc = dom.instantiateSlave(
+                slaveTypes.get("sfh.larky.identity"),
+                2000 /*ms*/)) {
+        Future.SlaveID sid = exe.addSlave(slaveLoc, 5000 /*ms*/);
+        sid.waitForResult();
+        if (!sid.waitForResult(1000)) throw new Exception();
+        sid.get();
+        }}}}
     }
 }

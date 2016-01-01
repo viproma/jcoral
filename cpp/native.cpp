@@ -5,6 +5,8 @@
 #include <string>
 #include <utility>
 
+#include "boost/variant.hpp"
+
 #include "dsb/domain/controller.hpp"
 #include "dsb/execution/controller.hpp"
 #include "dsb/net.hpp"
@@ -13,6 +15,8 @@
 #include "com_sfh_dsb_DomainLocator.h"
 #include "com_sfh_dsb_ExecutionController.h"
 #include "com_sfh_dsb_ExecutionLocator.h"
+#include "com_sfh_dsb_Future.h"
+#include "com_sfh_dsb_Future_SlaveID.h"
 #include "com_sfh_dsb_SlaveLocator.h"
 
 #define JDSB_STRINGIFY(x) #x
@@ -620,6 +624,34 @@ JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_setSimulationTimeNat
     }
 }
 
+namespace
+{
+    typedef boost::variant<
+            std::future<dsb::model::SlaveID>
+        > FutureVariant;
+}
+
+JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_addSlaveNative(
+    JNIEnv* env,
+    jclass,
+    jlong selfPtr,
+    jlong slaveLocatorPtr,
+    jint commTimeout_ms)
+{
+    if (!JEnforceNotNull(env, selfPtr) || !JEnforceNotNull(env, slaveLocatorPtr)) {
+        return 0;
+    }
+    const auto exe = reinterpret_cast<dsb::execution::Controller*>(selfPtr);
+    const auto slaveLoc = reinterpret_cast<const dsb::net::SlaveLocator*>(slaveLocatorPtr);
+    try {
+        return reinterpret_cast<jlong>(new FutureVariant(
+            exe->AddSlave(*slaveLoc, boost::chrono::milliseconds(commTimeout_ms))));
+    } catch (const std::exception& e) {
+        ThrowJException(env, "java/lang/Exception", e.what());
+        return 0;
+    }
+}
+
 
 // =============================================================================
 // ExecutionLocator
@@ -631,6 +663,85 @@ JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionLocator_destroyNative(
     jlong selfPtr)
 {
     delete reinterpret_cast<dsb::net::ExecutionLocator*>(selfPtr);
+}
+
+
+// =============================================================================
+// Future
+// =============================================================================
+
+namespace
+{
+    // Visitors for FutureVariant operations
+    class Wait : public boost::static_visitor<>
+    {
+    public:
+        template<typename T>
+        void operator()(const std::future<T>& f) const { f.wait(); }
+    };
+
+    class WaitFor : public boost::static_visitor<bool>
+    {
+    public:
+        WaitFor(std::chrono::milliseconds timeout) : timeout_(timeout) { }
+
+        template<typename T>
+        bool operator()(const std::future<T>& f)
+            const
+        {
+            return f.wait_for(timeout_) == std::future_status::ready;
+        }
+    private:
+        std::chrono::milliseconds timeout_;
+    };
+}
+
+JNIEXPORT void JNICALL Java_com_sfh_dsb_Future_destroyNative(
+    JNIEnv* env,
+    jclass,
+    jlong selfPtr)
+{
+    assert(selfPtr);
+    delete reinterpret_cast<FutureVariant*>(selfPtr);
+}
+
+
+JNIEXPORT void JNICALL Java_com_sfh_dsb_Future_waitForResultNative__J(
+    JNIEnv* env,
+    jclass,
+    jlong selfPtr)
+{
+    assert(selfPtr);
+    const auto f = reinterpret_cast<const FutureVariant*>(selfPtr);
+    boost::apply_visitor(Wait(), *f);
+}
+
+JNIEXPORT jboolean JNICALL Java_com_sfh_dsb_Future_waitForResultNative__JI(
+    JNIEnv* env,
+    jclass,
+    jlong selfPtr,
+    jint timeout_ms)
+{
+    assert(selfPtr);
+    const auto f = reinterpret_cast<const FutureVariant*>(selfPtr);
+    return boost::apply_visitor(WaitFor(std::chrono::milliseconds(timeout_ms)), *f);
+}
+
+JNIEXPORT jint JNICALL Java_com_sfh_dsb_Future_00024SlaveID_getValueNative(
+    JNIEnv* env,
+    jclass,
+    jlong selfPtr)
+{
+    assert(selfPtr);
+    const auto futureVariant = reinterpret_cast<FutureVariant*>(selfPtr);
+    const auto future = boost::get<std::future<dsb::model::SlaveID>>(futureVariant);
+    JDSB_REQUIRE(env, future);
+    try {
+        return future->get();
+    } catch (const std::exception& e) {
+        ThrowJException(env, "java/lang/Exception", e.what());
+        return 0;
+    }
 }
 
 

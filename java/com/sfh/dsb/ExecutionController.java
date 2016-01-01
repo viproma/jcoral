@@ -2,6 +2,8 @@ package com.sfh.dsb;
 
 import com.sfh.dsb.DomainLocator;
 import com.sfh.dsb.ExecutionLocator;
+import com.sfh.dsb.Future;
+import com.sfh.dsb.SlaveID;
 
 
 public final class ExecutionController implements AutoCloseable
@@ -62,6 +64,14 @@ public final class ExecutionController implements AutoCloseable
         setSimulationTimeNative(nativePtr, startTime, stopTime);
     }
 
+    public Future.SlaveID addSlave(SlaveLocator slaveLocator, int commTimeout_ms)
+        throws Exception
+    {
+        return new Future.SlaveID(
+            addSlaveNative(nativePtr, slaveLocator.getNativePtr(), commTimeout_ms));
+    }
+
+
     // =========================================================================
 
     private static native long spawnExecutionNative(
@@ -76,6 +86,9 @@ public final class ExecutionController implements AutoCloseable
         throws Exception;
     private static native void setSimulationTimeNative(
         long selfPtr, double startTime, double stopTime)
+        throws Exception;
+    private static native long addSlaveNative(
+        long selfPtr, long slaveLocatorPtr, int commTimeout_ms)
         throws Exception;
 
     long nativePtr = 0;

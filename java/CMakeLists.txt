@@ -1,20 +1,24 @@
 cmake_minimum_required(VERSION 3.0.0)
 
+set(package "com.sfh.dsb")
+
 # Java classes with native code
 set(nativeClasses
-    "com.sfh.dsb.DomainController"
-    "com.sfh.dsb.DomainLocator"
-    "com.sfh.dsb.ExecutionController"
-    "com.sfh.dsb.ExecutionLocator"
-    "com.sfh.dsb.SlaveLocator"
+    "${package}.DomainController"
+    "${package}.DomainLocator"
+    "${package}.ExecutionController"
+    "${package}.ExecutionLocator"
+    "${package}.Future"
+    "${package}.SlaveLocator"
 )
 
 # Java classes without native code
 set(normalClasses
-    "com.sfh.dsb.Causality"
-    "com.sfh.dsb.DataType"
-    "com.sfh.dsb.Variability"
-    "com.sfh.dsb.VariableDescription"
+    "${package}.Causality"
+    "${package}.DataType"
+    "${package}.SlaveID"
+    "${package}.Variability"
+    "${package}.VariableDescription"
 )
 
 # ==============================================================================
@@ -76,3 +80,17 @@ foreach(class ${nativeClasses})
     )
 endforeach()
 add_custom_target(headers DEPENDS ${headerFiles})
+
+# ==============================================================================
+# Target: doc
+# ==============================================================================
+
+set(docDir "${CMAKE_BINARY_DIR}/javadoc")
+add_custom_command(
+    OUTPUT "${docDir}"
+    COMMAND "${Java_JAVADOC_EXECUTABLE}" "-d" "${docDir}" "-public"
+        "-sourcepath" "${CMAKE_CURRENT_SOURCE_DIR}" "${package}"
+    DEPENDS ${javaFiles}
+    VERBATIM
+)
+add_custom_target(doc ALL DEPENDS "${docDir}")
