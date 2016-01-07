@@ -2,9 +2,11 @@
 #include <exception>
 #include <functional>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
+#include "boost/numeric/conversion/cast.hpp"
 #include "boost/variant.hpp"
 
 #include "dsb/domain/controller.hpp"
@@ -45,79 +47,110 @@ namespace
         JDSB_REQUIRE(env, 0 == env->ThrowNew(exClass, msg.c_str()));
     }
 
-    // Throws a java.lang.NullPointerException if `ptr` is null, and returns
-    // `true` iff `ptr` is not null.
-    template<typename T>
-    bool JEnforceNotNull(JNIEnv* env, T ptr)
-    {
-        if (!ptr) ThrowJException(env, "java/lang/NullPointerException", "Null pointer");
-        return !!ptr;
-    }
-
-    // A basic "option type", which may have a value or a not-a-value.
-    template<typename T>
-    class Maybe
+    // Signals that a Java exception has been thrown (and consequently that
+    // control should be returned to the JVM).
+    class JavaExceptionThrown : public std::runtime_error
     {
     public:
-        Maybe() : value_(), hasValue_(false) { }
-        Maybe(const T& value) : value_(value), hasValue_(true) { }
-
-        operator bool() const noexcept { return hasValue_; }
-
-        const T& get() const
-        {
-            if (hasValue_) return value_;
-            else throw std::logic_error("No value");
-        }
-
-        T& get()
-        {
-            if (hasValue_) return value_;
-            else throw std::logic_error("No value");
-        }
-
-    private:
-        T value_;
-        bool hasValue_;
+        JavaExceptionThrown()
+            : std::runtime_error("A java exception has been thrown")
+        { }
     };
 
-    // Returns a Maybe object with the given value.
-    template<typename T> Maybe<T> Actually(const T& value) { return Maybe<T>(value); }
+    // Signals that an error occurred and that a Java exception of a specific
+    // type should be thrown for it.
+    class JavaException : public std::runtime_error
+    {
+    public:
+        JavaException(const char* className, std::string message = std::string())
+            : std::runtime_error(
+                std::string("An error occurred, for which a Java exception of type ")
+                + className + " should be thrown"),
+              className_(className),
+              message_(std::move(message))
+        { }
+
+        const char* ClassName() const { return className_; }
+
+        const char* Message() const { return message_.c_str(); }
+
+    private:
+        const char* className_;
+        std::string message_;
+    };
+
+    // Throws JavaExceptionThrown if `test` is false. The purpose of this
+    // function is to test the return values of JNI calls.
+    void CheckJNIReturn(bool test)
+    {
+        if (!test) throw JavaExceptionThrown();
+    }
+
+    // This function converts an in-flight C++ exception to an in-flight Java
+    // exception.  It may therefore only be called from a catch block (so that
+    // there is in fact a C++ exception in flight).  The calling code should
+    // return to the JVM immediately afterwards, because there is now a Java
+    // exception in flight.  (It is therefore recommended to call this only
+    // from top-level native functions.
+    void RethrowAsJavaException(JNIEnv* env)
+    {
+        try {
+            throw;
+        } catch (const JavaExceptionThrown&) {
+            // Do nothing, Java exception is already in flight
+        } catch (const JavaException& e) {
+            ThrowJException(env, e.ClassName(), e.Message());
+        } catch (const std::logic_error& e) {
+            ThrowJException(env, "java/lang/RuntimeException", e.what());
+        } catch (const std::exception& e) {
+            ThrowJException(env, "java/lang/Exception", e.what());
+        } catch (...) {
+            ThrowJException(
+                env,
+                "java/lang/Error",
+                "An unidentified error occurred in DSB");
+        }
+    }
+
+    // Throws a JavaException corresponding to a java.lang.NullPointerException
+    // if `ptr` is null.
+    template<typename T>
+    void EnforceNotNull(T ptr)
+    {
+        if (!ptr) {
+            throw JavaException("java/lang/NullPointerException", "Null pointer");
+        }
+    }
 
     // Converts a Java string to a C++ string.
-    //
-    // If the function returns not-a-value it means that the conversion failed.
-    // In that case, a Java exception will have been thrown, and the caller
-    // should return control to the JVM as soon as possible.
-    Maybe<std::string> ToString(JNIEnv* env, jstring javaString)
+    std::string ToString(JNIEnv* env, jstring javaString)
     {
-        if (!JEnforceNotNull(env, javaString)) return Maybe<std::string>();
+        EnforceNotNull(javaString);
         const auto cString = env->GetStringUTFChars(javaString, nullptr);
-        if (cString) {
-            const auto ret = std::string(cString);
-            env->ReleaseStringUTFChars(javaString, cString);
-            return Actually(std::move(ret));
-        } else {
-            return Maybe<std::string>();
-        }
+        CheckJNIReturn(cString);
+        const auto cppString = std::string(cString);
+        env->ReleaseStringUTFChars(javaString, cString);
+        return cppString;
     }
 
     // Converts a std::string to a Java string.
     jstring ToJString(JNIEnv* env, const std::string& cppString)
     {
-        return env->NewStringUTF(cppString.c_str());
+        const auto jString = env->NewStringUTF(cppString.c_str());
+        CheckJNIReturn(jString);
+        return jString;
     }
 
     // Gets the field named `fieldName` from the Java enum class named `enumName`.
     jobject GetEnumField(JNIEnv* env, const char* enumName, const char* fieldName)
     {
         const auto clazz = env->FindClass(enumName);
-        if (!clazz) return nullptr;
+        CheckJNIReturn(clazz);
         const auto signature = 'L' + std::string(enumName) + ';';
         const auto id = env->GetStaticFieldID(clazz, fieldName, signature.c_str());
-        JDSB_REQUIRE(env, id);
+        CheckJNIReturn(id);
         const auto value = env->GetStaticObjectField(clazz, id);
-        JDSB_REQUIRE(env, value);
+        CheckJNIReturn(value);
         return value;
     }
 
@@ -129,10 +162,10 @@ namespace
         const char* fieldName,
         jint value)
     {
-        jclass clazz = env->GetObjectClass(object);
-        JDSB_REQUIRE(env, clazz);
-        jfieldID field = env->GetFieldID(clazz, fieldName, "I");
-        JDSB_REQUIRE(env, field);
+        const auto clazz = env->GetObjectClass(object);
+        CheckJNIReturn(clazz);
+        const auto field = env->GetFieldID(clazz, fieldName, "I");
+        CheckJNIReturn(field);
         env->SetIntField(object, field, value);
     }
 
@@ -145,34 +178,27 @@ namespace
         const char* fieldSig,
         jobject value)
     {
-        jclass clazz = env->GetObjectClass(object);
-        JDSB_REQUIRE(env, clazz);
-        jfieldID field = env->GetFieldID(clazz, fieldName, fieldSig);
-        JDSB_REQUIRE(env, field);
+        const auto clazz = env->GetObjectClass(object);
+        CheckJNIReturn(clazz);
+        const auto field = env->GetFieldID(clazz, fieldName, fieldSig);
+        CheckJNIReturn(field);
         env->SetObjectField(object, field, value);
     }
 
     // Sets the field named `fieldName`, which must be of type `String`,
     // in object `object`, to the value of `cValue`.
-    // If the operation fails, a Java exception is thrown and the function
-    // returns `false`.
-    bool SetField(
+    void SetField(
         JNIEnv* env,
         jobject object,
         const char* fieldName,
         const std::string& cValue)
     {
-        jstring jValue = ToJString(env, cValue);
-        if (!jValue) return false;
-        SetField(env, object, fieldName, "Ljava/lang/String;", jValue);
-        return true;
+        SetField(env, object, fieldName, "Ljava/lang/String;", ToJString(env, cValue));
     }
 
     // Creates a Java array containing the same elements as `vec`, where each
     // element is converted using `conv`.  `elementClass` must refer to the
     // class of the objects returned by `conv`.
-    // If the operation fails, a Java exception is thrown and the function
-    // returns null.
     template<typename CT>
     jobjectArray ToJArray(
         JNIEnv* env,
@@ -184,10 +210,9 @@ namespace
         assert(elementClass);
         assert(conv);
         const auto array = env->NewObjectArray(vec.size(), elementClass, nullptr);
-        if (!array) return nullptr;
+        CheckJNIReturn(array);
         for (size_t i = 0; i < vec.size(); ++i) {
             const auto element = conv(vec[i]);
-            if (!element) return nullptr;
             env->SetObjectArrayElement(array, i, element);
         }
         return array;
@@ -204,13 +229,14 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_DomainController_createNative(
     jclass,
     jlong domainLocatorPtr)
 {
-    if (!JEnforceNotNull(env, domainLocatorPtr)) return 0;
-    auto domainLocator = reinterpret_cast<dsb::net::DomainLocator*>(domainLocatorPtr);
     try {
-        auto domainController = new dsb::domain::Controller(*domainLocator);
+        EnforceNotNull(domainLocatorPtr);
+        const auto domainLocator =
+            reinterpret_cast<dsb::net::DomainLocator*>(domainLocatorPtr);
+        const auto domainController = new dsb::domain::Controller(*domainLocator);
         return reinterpret_cast<jlong>(domainController);
-    } catch(const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+    } catch(...) {
+        RethrowAsJavaException(env);
         return 0;
     }
 }
@@ -220,9 +246,7 @@ JNIEXPORT void JNICALL Java_com_sfh_dsb_DomainController_destroyNative(
     jclass,
     jlong ptr)
 {
-    if (JEnforceNotNull(env, ptr)) {
-        delete reinterpret_cast<dsb::domain::Controller*>(ptr);
-    }
+    delete reinterpret_cast<dsb::domain::Controller*>(ptr);
 }
 
 namespace
@@ -230,26 +254,18 @@ namespace
     class DataTypeConverter
     {
     public:
-        static Maybe<DataTypeConverter> Create(JNIEnv* env)
+        DataTypeConverter(JNIEnv* env)
+            : env_(env),
+              real_(nullptr),
+              integer_(nullptr),
+              boolean_(nullptr),
+              string_(nullptr)
         {
-            auto jClass = env->FindClass("com/sfh/dsb/DataType");
-            if (!jClass) return Maybe<DataTypeConverter>();
-
-            DataTypeConverter ret;
-            ret.env_ = env;
-            ret.real_ = GetEnumField(env, "com/sfh/dsb/DataType", "REAL");
-            if (!ret.real_) return Maybe<DataTypeConverter>();
-            ret.integer_ = GetEnumField(env, "com/sfh/dsb/DataType", "INTEGER");
-            if (!ret.integer_) return Maybe<DataTypeConverter>();
-            ret.boolean_ = GetEnumField(env, "com/sfh/dsb/DataType", "BOOLEAN");
-            if (!ret.boolean_) return Maybe<DataTypeConverter>();
-            ret.string_ = GetEnumField(env, "com/sfh/dsb/DataType", "STRING");
-            if (!ret.string_) return Maybe<DataTypeConverter>();
-
-            return Actually(ret);
+            real_ = GetEnumField(env, "com/sfh/dsb/DataType", "REAL");
+            integer_ = GetEnumField(env, "com/sfh/dsb/DataType", "INTEGER");
+            boolean_ = GetEnumField(env, "com/sfh/dsb/DataType", "BOOLEAN");
+            string_ = GetEnumField(env, "com/sfh/dsb/DataType", "STRING");
         }
-
-        DataTypeConverter() { }
 
         jobject JavaValue(dsb::model::DataType dt) const
         {
@@ -275,28 +291,20 @@ namespace
     class CausalityConverter
     {
     public:
-        static Maybe<CausalityConverter> Create(JNIEnv* env)
+        CausalityConverter(JNIEnv* env)
+            : env_(env),
+              parameter_(nullptr),
+              calculatedParameter_(nullptr),
+              input_(nullptr),
+              output_(nullptr),
+              local_(nullptr)
         {
-            auto jClass = env->FindClass("com/sfh/dsb/Causality");
-            if (!jClass) return Maybe<CausalityConverter>();
-
-            CausalityConverter ret;
-            ret.env_ = env;
-            ret.parameter_ = GetEnumField(env, "com/sfh/dsb/Causality", "PARAMETER");
-            if (!ret.parameter_) return Maybe<CausalityConverter>();
-            ret.calculatedParameter_ = GetEnumField(env, "com/sfh/dsb/Causality", "CALCULATED_PARAMETER");
-            if (!ret.calculatedParameter_) return Maybe<CausalityConverter>();
-            ret.input_ = GetEnumField(env, "com/sfh/dsb/Causality", "INPUT");
-            if (!ret.input_) return Maybe<CausalityConverter>();
-            ret.output_ = GetEnumField(env, "com/sfh/dsb/Causality", "OUTPUT");
-            if (!ret.output_) return Maybe<CausalityConverter>();
-            ret.local_ = GetEnumField(env, "com/sfh/dsb/Causality", "LOCAL");
-            if (!ret.local_) return Maybe<CausalityConverter>();
-
-            return Actually(ret);
+            parameter_ = GetEnumField(env, "com/sfh/dsb/Causality", "PARAMETER");
+            calculatedParameter_ = GetEnumField(env, "com/sfh/dsb/Causality", "CALCULATED_PARAMETER");
+            input_ = GetEnumField(env, "com/sfh/dsb/Causality", "INPUT");
+            output_ = GetEnumField(env, "com/sfh/dsb/Causality", "OUTPUT");
+            local_ = GetEnumField(env, "com/sfh/dsb/Causality", "LOCAL");
         }
-
-        CausalityConverter() { }
 
         jobject JavaValue(dsb::model::Causality c) const
         {
@@ -324,28 +332,20 @@ namespace
     class VariabilityConverter
     {
     public:
-        static Maybe<VariabilityConverter> Create(JNIEnv* env)
+        VariabilityConverter(JNIEnv* env)
+            : env_(env),
+              constant_(nullptr),
+              fixed_(nullptr),
+              tunable_(nullptr),
+              discrete_(nullptr),
+              continuous_(nullptr)
         {
-            auto jClass = env->FindClass("com/sfh/dsb/Variability");
-            if (!jClass) return Maybe<VariabilityConverter>();
-
-            VariabilityConverter ret;
-            ret.env_ = env;
-            ret.constant_ = GetEnumField(env, "com/sfh/dsb/Variability", "CONSTANT");
-            if (!ret.constant_) return Maybe<VariabilityConverter>();
-            ret.fixed_ = GetEnumField(env, "com/sfh/dsb/Variability", "FIXED");
-            if (!ret.fixed_) return Maybe<VariabilityConverter>();
-            ret.tunable_ = GetEnumField(env, "com/sfh/dsb/Variability", "TUNABLE");
-            if (!ret.tunable_) return Maybe<VariabilityConverter>();
-            ret.discrete_ = GetEnumField(env, "com/sfh/dsb/Variability", "DISCRETE");
-            if (!ret.discrete_) return Maybe<VariabilityConverter>();
-            ret.continuous_ = GetEnumField(env, "com/sfh/dsb/Variability", "CONTINUOUS");
-            if (!ret.continuous_) return Maybe<VariabilityConverter>();
-
-            return Actually(ret);
+            constant_ = GetEnumField(env, "com/sfh/dsb/Variability", "CONSTANT");
+            fixed_ = GetEnumField(env, "com/sfh/dsb/Variability", "FIXED");
+            tunable_ = GetEnumField(env, "com/sfh/dsb/Variability", "TUNABLE");
+            discrete_ = GetEnumField(env, "com/sfh/dsb/Variability", "DISCRETE");
+            continuous_ = GetEnumField(env, "com/sfh/dsb/Variability", "CONTINUOUS");
         }
-
-        VariabilityConverter() { }
 
         jobject JavaValue(dsb::model::Variability c) const
         {
@@ -381,14 +381,12 @@ namespace
         const dsb::model::VariableDescription& cVarDesc)
     {
         auto jVarDesc = env->NewObject(variableDescriptionClass, defaultCtor);
-        if (!jVarDesc) return nullptr;
-
+        CheckJNIReturn(jVarDesc);
         SetField(env, jVarDesc, "id", cVarDesc.ID());
-        if (!SetField(env, jVarDesc, "name", cVarDesc.Name())) return nullptr;
+        SetField(env, jVarDesc, "name", cVarDesc.Name());
         SetField(env, jVarDesc, "dataType", "Lcom/sfh/dsb/DataType;", dtConv.JavaValue(cVarDesc.DataType()));
         SetField(env, jVarDesc, "causality", "Lcom/sfh/dsb/Causality;", csConv.JavaValue(cVarDesc.Causality()));
         SetField(env, jVarDesc, "variability", "Lcom/sfh/dsb/Variability;", vbConv.JavaValue(cVarDesc.Variability()));
-
         return jVarDesc;
     }
 
@@ -399,24 +397,21 @@ namespace
         const dsb::domain::Controller::SlaveType& cSlaveType)
     {
         jobject jSlaveType = env->NewObject(slaveTypeClass, defaultCtor);
-        if (!jSlaveType) return nullptr;
-
-        if (!SetField(env, jSlaveType, "name", cSlaveType.name)) return nullptr;
-        if (!SetField(env, jSlaveType, "uuid", cSlaveType.uuid)) return nullptr;
-        if (!SetField(env, jSlaveType, "description", cSlaveType.description)) return nullptr;
-        if (!SetField(env, jSlaveType, "author", cSlaveType.author)) return nullptr;
-        if (!SetField(env, jSlaveType, "version", cSlaveType.version)) return nullptr;
+        CheckJNIReturn(jSlaveType);
+        SetField(env, jSlaveType, "name", cSlaveType.name);
+        SetField(env, jSlaveType, "uuid", cSlaveType.uuid);
+        SetField(env, jSlaveType, "description", cSlaveType.description);
+        SetField(env, jSlaveType, "author", cSlaveType.author);
+        SetField(env, jSlaveType, "version", cSlaveType.version);
 
         const auto vdClass = env->FindClass("com/sfh/dsb/VariableDescription");
-        if (!vdClass) return nullptr;
+        CheckJNIReturn(vdClass);
         const auto vdCtor = env->GetMethodID(vdClass, "<init>", "()V");
-        JDSB_REQUIRE(env, vdCtor);
-        const auto dtConv = DataTypeConverter::Create(env);
-        JDSB_REQUIRE(env, dtConv);
-        const auto csConv = CausalityConverter::Create(env);
-        JDSB_REQUIRE(env, csConv);
-        const auto vbConv = VariabilityConverter::Create(env);
-        JDSB_REQUIRE(env, vbConv);
+        CheckJNIReturn(vdCtor);
+
+        const auto dtConv = DataTypeConverter(env);
+        const auto csConv = CausalityConverter(env);
+        const auto vbConv = VariabilityConverter(env);
         const auto variables = ToJArray<dsb::model::VariableDescription>(
             env,
             vdClass,
@@ -425,16 +420,15 @@ namespace
                 (const dsb::model::VariableDescription& vd)
             {
                 return ToJVariableDescription(env,
-                    dtConv.get(), csConv.get(), vbConv.get(),
+                    dtConv, csConv, vbConv,
                     vdClass, vdCtor, vd);
             });
         SetField(env, jSlaveType, "variables", "[Lcom/sfh/dsb/VariableDescription;", variables);
 
         auto stringClass = env->FindClass("java/lang/String");
-        JDSB_REQUIRE(env, stringClass);
+        CheckJNIReturn(stringClass);
         auto providers = ToJArray<std::string>(env, stringClass, cSlaveType.providers,
             [env] (const std::string& s) { return ToJString(env, s); });
-        if (!providers) return nullptr;
         SetField(env, jSlaveType, "providers", "[Ljava/lang/String;", providers);
         return jSlaveType;
     }
@@ -445,22 +439,24 @@ JNIEXPORT jobjectArray JNICALL Java_com_sfh_dsb_DomainController_getSlaveTypesNa
     jclass,
     jlong selfPtr)
 {
-    if (!JEnforceNotNull(env, selfPtr)) return 0;
-    auto dom = reinterpret_cast<dsb::domain::Controller*>(selfPtr);
     try {
-        auto slaveTypes = dom->GetSlaveTypes();
+        EnforceNotNull(selfPtr);
+        const auto dom = reinterpret_cast<dsb::domain::Controller*>(selfPtr);
+        const auto slaveTypes = dom->GetSlaveTypes();
 
-        const auto slaveTypeClass = env->FindClass("com/sfh/dsb/DomainController$SlaveType");
-        if (!slaveTypeClass) return nullptr;
-        const auto slaveTypeCtor = env->GetMethodID(slaveTypeClass, "<init>", "()V");
-        JDSB_REQUIRE(env, slaveTypeCtor);
+        const auto slaveTypeClass =
+            env->FindClass("com/sfh/dsb/DomainController$SlaveType");
+        CheckJNIReturn(slaveTypeClass);
+        const auto slaveTypeCtor =
+            env->GetMethodID(slaveTypeClass, "<init>", "()V");
+        CheckJNIReturn(slaveTypeCtor);
 
         return ToJArray<dsb::domain::Controller::SlaveType>(env, slaveTypeClass, slaveTypes,
             [env, slaveTypeClass, slaveTypeCtor] (const dsb::domain::Controller::SlaveType& st) {
                 return ToJSlaveType(env, slaveTypeClass, slaveTypeCtor, st);
             });
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+    } catch (...) {
+        RethrowAsJavaException(env);
         return nullptr;
     }
 }
@@ -473,21 +469,17 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_DomainController_instantiateSlaveNative
     jint timeout_ms,
     jstring provider)
 {
-    if (!JEnforceNotNull(env, selfPtr)) return 0;
-    auto dom = reinterpret_cast<dsb::domain::Controller*>(selfPtr);
-    const auto cSlaveUUID = ToString(env, slaveUUID);
-    if (!cSlaveUUID) return 0;
-    const auto cProvider = ToString(env, provider);
-    if (!cProvider) return 0;
     try {
+        EnforceNotNull(selfPtr);
+        const auto dom = reinterpret_cast<dsb::domain::Controller*>(selfPtr);
         const auto slaveLoc = new dsb::net::SlaveLocator(
             dom->InstantiateSlave(
-                cSlaveUUID.get(),
-                boost::chrono::milliseconds(timeout_ms),
-                cProvider.get()));
+                ToString(env, slaveUUID),
+                std::chrono::milliseconds(timeout_ms),
+                ToString(env, provider)));
         return reinterpret_cast<jlong>(slaveLoc);
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+    } catch (...) {
+        RethrowAsJavaException(env);
         return 0;
     }
 }
@@ -502,13 +494,13 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_DomainLocator_createNative(
     jclass,
     jstring domainAddress)
 {
-    auto addr = ToString(env, domainAddress);
-    if (!addr) return 0;
     try {
-        auto ptr = new dsb::net::DomainLocator(dsb::net::GetDomainEndpoints(addr.get()));
+        const auto addr = ToString(env, domainAddress);
+        const auto ptr = new dsb::net::DomainLocator(
+            dsb::net::GetDomainEndpoints(addr));
         return reinterpret_cast<jlong>(ptr);
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+    } catch (...) {
+        RethrowAsJavaException(env);
         return 0;
     }
 }
@@ -518,9 +510,7 @@ JNIEXPORT void JNICALL Java_com_sfh_dsb_DomainLocator_destroyNative(
     jclass,
     jlong ptr)
 {
-    if (JEnforceNotNull(env, ptr)) {
-        delete reinterpret_cast<dsb::net::DomainLocator*>(ptr);
-    }
+    delete reinterpret_cast<dsb::net::DomainLocator*>(ptr);
 }
 
 
@@ -535,19 +525,16 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_spawnExecutionNativ
     jstring executionName,
     jint commTimeout_s)
 {
-    if (!JEnforceNotNull(env, domainLocatorPtr)) return 0;
-    const auto cExeName = executionName
-        ? ToString(env, executionName)
-        : Actually(std::string());
-    if (!cExeName) return 0;
     try {
+        EnforceNotNull(domainLocatorPtr);
+        const auto cExeName = executionName ? ToString(env, executionName) : std::string();
         return reinterpret_cast<jlong>(new dsb::net::ExecutionLocator(
             dsb::execution::SpawnExecution(
                 *reinterpret_cast<dsb::net::DomainLocator*>(domainLocatorPtr),
-                cExeName.get(),
-                boost::chrono::seconds(commTimeout_s))));
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+                cExeName,
+                std::chrono::seconds(commTimeout_s))));
+    } catch (...) {
+        RethrowAsJavaException(env);
         return 0;
     }
 }
@@ -557,13 +544,13 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_createNative(
     jclass,
     jlong locatorPtr)
 {
-    if (!JEnforceNotNull(env, locatorPtr)) return 0;
     try {
+        EnforceNotNull(locatorPtr);
         return reinterpret_cast<jlong>(
             new dsb::execution::Controller(
                 *reinterpret_cast<dsb::net::ExecutionLocator*>(locatorPtr)));
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+    } catch (...) {
+        RethrowAsJavaException(env);
         return 0;
     }
 }
@@ -573,60 +560,66 @@ JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_destroyNative(
     jclass,
     jlong selfPtr)
 {
-    if (JEnforceNotNull(env, selfPtr)) try {
-        auto exe = reinterpret_cast<dsb::execution::Controller*>(selfPtr);
+    try {
+        EnforceNotNull(selfPtr);
+        const auto exe = reinterpret_cast<dsb::execution::Controller*>(selfPtr);
         exe->Terminate();
         delete exe;
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+    } catch (...) {
+        RethrowAsJavaException(env);
     }
 }
 
 JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_beginConfigNative(
     JNIEnv* env, jclass, jlong selfPtr)
 {
-    if (JEnforceNotNull(env, selfPtr)) try {
+    try {
+        EnforceNotNull(selfPtr);
         reinterpret_cast<dsb::execution::Controller*>(selfPtr)->BeginConfig();
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+    } catch (...) {
+        RethrowAsJavaException(env);
     }
 }
 
 JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_endConfigNative(
     JNIEnv* env, jclass, jlong selfPtr)
 {
-    if (JEnforceNotNull(env, selfPtr)) try {
+    try {
+        EnforceNotNull(selfPtr);
         reinterpret_cast<dsb::execution::Controller*>(selfPtr)->EndConfig();
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+    } catch (...) {
+        RethrowAsJavaException(env);
     }
 }
 
 JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_setSimulationTimeNative__JD(
     JNIEnv* env, jclass, jlong selfPtr, jdouble startTime)
 {
-    if (JEnforceNotNull(env, selfPtr)) try {
+    try {
+        EnforceNotNull(selfPtr);
         reinterpret_cast<dsb::execution::Controller*>(selfPtr)
             ->SetSimulationTime(startTime);
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+    } catch (...) {
+        RethrowAsJavaException(env);
     }
 }
 
 JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_setSimulationTimeNative__JDD(
     JNIEnv* env, jclass, jlong selfPtr, jdouble startTime, jdouble stopTime)
 {
-    if (JEnforceNotNull(env, selfPtr)) try {
+    try {
+        EnforceNotNull(selfPtr);
         reinterpret_cast<dsb::execution::Controller*>(selfPtr)
             ->SetSimulationTime(startTime, stopTime);
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+    } catch (...) {
+        RethrowAsJavaException(env);
     }
 }
 
 namespace
 {
     typedef boost::variant<
+            std::future<void>,
             std::future<dsb::model::SlaveID>
         > FutureVariant;
 }
@@ -638,16 +631,15 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_addSlaveNative(
     jlong slaveLocatorPtr,
     jint commTimeout_ms)
 {
-    if (!JEnforceNotNull(env, selfPtr) || !JEnforceNotNull(env, slaveLocatorPtr)) {
-        return 0;
-    }
-    const auto exe = reinterpret_cast<dsb::execution::Controller*>(selfPtr);
-    const auto slaveLoc = reinterpret_cast<const dsb::net::SlaveLocator*>(slaveLocatorPtr);
     try {
+        EnforceNotNull(selfPtr);
+        EnforceNotNull(slaveLocatorPtr);
+        const auto exe = reinterpret_cast<dsb::execution::Controller*>(selfPtr);
+        const auto slaveLoc = reinterpret_cast<const dsb::net::SlaveLocator*>(slaveLocatorPtr);
         return reinterpret_cast<jlong>(new FutureVariant(
-            exe->AddSlave(*slaveLoc, boost::chrono::milliseconds(commTimeout_ms))));
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+            exe->AddSlave(*slaveLoc, std::chrono::milliseconds(commTimeout_ms))));
+    } catch (...) {
+        RethrowAsJavaException(env);
         return 0;
     }
 }
@@ -701,7 +693,6 @@ JNIEXPORT void JNICALL Java_com_sfh_dsb_Future_destroyNative(
     jclass,
     jlong selfPtr)
 {
-    assert(selfPtr);
     delete reinterpret_cast<FutureVariant*>(selfPtr);
 }
 
@@ -711,9 +702,13 @@ JNIEXPORT void JNICALL Java_com_sfh_dsb_Future_waitForResultNative__J(
     jclass,
     jlong selfPtr)
 {
-    assert(selfPtr);
-    const auto f = reinterpret_cast<const FutureVariant*>(selfPtr);
-    boost::apply_visitor(Wait(), *f);
+    try {
+        EnforceNotNull(selfPtr);
+        const auto f = reinterpret_cast<const FutureVariant*>(selfPtr);
+        boost::apply_visitor(Wait(), *f);
+    } catch (...) {
+        RethrowAsJavaException(env);
+    }
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sfh_dsb_Future_waitForResultNative__JI(
@@ -722,9 +717,16 @@ JNIEXPORT jboolean JNICALL Java_com_sfh_dsb_Future_waitForResultNative__JI(
     jlong selfPtr,
     jint timeout_ms)
 {
-    assert(selfPtr);
-    const auto f = reinterpret_cast<const FutureVariant*>(selfPtr);
-    return boost::apply_visitor(WaitFor(std::chrono::milliseconds(timeout_ms)), *f);
+    try {
+        EnforceNotNull(selfPtr);
+        const auto f = reinterpret_cast<const FutureVariant*>(selfPtr);
+        return boost::apply_visitor(
+            WaitFor(std::chrono::milliseconds(timeout_ms)),
+            *f);
+    } catch (...) {
+        RethrowAsJavaException(env);
+        return false;
+    }
 }
 
 JNIEXPORT jint JNICALL Java_com_sfh_dsb_Future_00024SlaveID_getValueNative(
@@ -732,15 +734,31 @@ JNIEXPORT jint JNICALL Java_com_sfh_dsb_Future_00024SlaveID_getValueNative(
     jclass,
     jlong selfPtr)
 {
-    assert(selfPtr);
-    const auto futureVariant = reinterpret_cast<FutureVariant*>(selfPtr);
-    const auto future = boost::get<std::future<dsb::model::SlaveID>>(futureVariant);
-    JDSB_REQUIRE(env, future);
     try {
-        return future->get();
-    } catch (const std::exception& e) {
-        ThrowJException(env, "java/lang/Exception", e.what());
+        EnforceNotNull(selfPtr);
+        const auto futureVariant = reinterpret_cast<FutureVariant*>(selfPtr);
+        const auto future = boost::get<std::future<dsb::model::SlaveID>>(futureVariant);
+        JDSB_REQUIRE(env, future);
+        return boost::numeric_cast<jint>(future->get());
+    } catch (...) {
+        RethrowAsJavaException(env);
         return 0;
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_sfh_dsb_Future_00024Void_getValueNative(
+    JNIEnv* env,
+    jclass,
+    jlong selfPtr)
+{
+    try {
+        EnforceNotNull(selfPtr);
+        const auto futureVariant = reinterpret_cast<FutureVariant*>(selfPtr);
+        const auto future = boost::get<std::future<void>>(futureVariant);
+        JDSB_REQUIRE(env, future);
+        future->get();
+    } catch (...) {
+        RethrowAsJavaException(env);
     }
 }
 

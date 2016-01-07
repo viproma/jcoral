@@ -4,6 +4,7 @@ import com.sfh.dsb.DomainLocator;
 import com.sfh.dsb.ExecutionLocator;
 import com.sfh.dsb.Future;
 import com.sfh.dsb.SlaveID;
+import com.sfh.dsb.VariableSetting;
 
 
 public final class ExecutionController implements AutoCloseable
@@ -45,34 +46,46 @@ public final class ExecutionController implements AutoCloseable
 
     public void beginConfig() throws Exception
     {
+        CheckSelf();
         beginConfigNative(nativePtr);
     }
 
     public void endConfig() throws Exception
     {
+        CheckSelf();
         endConfigNative(nativePtr);
     }
 
     public void setSimulationTime(double startTime) throws Exception
     {
+        CheckSelf();
         setSimulationTimeNative(nativePtr, startTime);
     }
 
     public void setSimulationTime(double startTime, double stopTime)
         throws Exception
     {
+        CheckSelf();
         setSimulationTimeNative(nativePtr, startTime, stopTime);
     }
 
     public Future.SlaveID addSlave(SlaveLocator slaveLocator, int commTimeout_ms)
         throws Exception
     {
+        CheckSelf();
         return new Future.SlaveID(
             addSlaveNative(nativePtr, slaveLocator.getNativePtr(), commTimeout_ms));
     }
 
 
     // =========================================================================
+
+    private void CheckSelf()
+    {
+        if (nativePtr == 0) {
+            throw new IllegalStateException("ExecutionController has been closed");
+        }
+    }
 
     private static native long spawnExecutionNative(
         long domainLocatorPtr, String executionName, int commTimeout_s)
