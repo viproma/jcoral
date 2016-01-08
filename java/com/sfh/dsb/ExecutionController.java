@@ -77,6 +77,17 @@ public final class ExecutionController implements AutoCloseable
             addSlaveNative(nativePtr, slaveLocator.getNativePtr(), commTimeout_ms));
     }
 
+    public Future.Void setVariables(
+        SlaveID slave,
+        Iterable<VariableSetting> variableSettings,
+        int timeout_ms)
+        throws Exception
+    {
+        CheckSelf();
+        return new Future.Void(
+            setVariablesNative(nativePtr, slave.getID(), variableSettings, timeout_ms));
+    }
+
 
     // =========================================================================
 
@@ -102,6 +113,12 @@ public final class ExecutionController implements AutoCloseable
         throws Exception;
     private static native long addSlaveNative(
         long selfPtr, long slaveLocatorPtr, int commTimeout_ms)
+        throws Exception;
+    private static native long setVariablesNative(
+        long selfPtr,
+        int slaveID,
+        Iterable<VariableSetting> variableSettings,
+        int timeout_ms)
         throws Exception;
 
     long nativePtr = 0;

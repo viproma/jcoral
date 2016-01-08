@@ -19,10 +19,29 @@
 #include "com_sfh_dsb_ExecutionLocator.h"
 #include "com_sfh_dsb_Future.h"
 #include "com_sfh_dsb_Future_SlaveID.h"
+#include "com_sfh_dsb_Future_Void.h"
 #include "com_sfh_dsb_SlaveLocator.h"
 
+
+// Compiler-agnostic noreturn attribute
+#if __cplusplus >= 201103L
+#   define JDSB_NORETURN [[noreturn]]
+#elif defined(_MSC_VER)
+#   define JDSB_NORETURN __declspec(noreturn)
+#else
+#   define JDSB_NORETURN
+#endif
+
+// Helpers for JDSB_FATAL
 #define JDSB_STRINGIFY(x) #x
 #define JDSB_TOSTRING(x) JDSB_STRINGIFY(x)
+
+// Terminates the program, displaying the given error message.
+// `msg` MUST be a string literal, and not a runtime variable.
+#define JDSB_FATAL(env, msg) \
+    do { \
+        FatalError(env, "Fatal error in " __FILE__ "(" JDSB_TOSTRING(__LINE__) "): " msg); \
+    } while(false)
 
 // Terminates the program with the given message if `test` evaluates to false.
 // If a Java exception is in flight at this point, its message will be printed
@@ -32,15 +51,28 @@
         if (env->ExceptionOccurred()) { \
             env->ExceptionDescribe(); \
         } \
-        env->FatalError("JDSB_REQUIRE failure in " __FILE__ ", line " JDSB_TOSTRING(__LINE__) "."); \
+        JDSB_FATAL(env, "Requirement not satisfied: " #test); \
     }
 
 
 namespace
 {
+    // Terminates the program forcefully and abruptly.
+    // This is mainly to attach a noreturn attribute to the JNI FatalError()
+    // function.
+    JDSB_NORETURN void FatalError(JNIEnv* env, const char* msg)
+    {
+        env->FatalError(msg);
+        // We actually never get here, the following is just to shut the
+        // compiler up about the function returning.
+        assert(false);
+        std::terminate();
+    }
+
     // Throws a Java exception of the type specified by `className` (e.g.
     // "java/lang/Exception"), with a descriptive message given by `msg`.
-    void ThrowJException(JNIEnv* env, const std::string& className, const std::string& msg)
+    void ThrowJException(
+        JNIEnv* env, const std::string& className, const std::string& msg)
     {
         auto exClass = env->FindClass(className.c_str());
         JDSB_REQUIRE(env, exClass);
@@ -84,6 +116,14 @@ namespace
     void CheckJNIReturn(bool test)
     {
         if (!test) throw JavaExceptionThrown();
+    }
+
+    // Throws a JavaExceptionThrown if `env->ExceptionOccurred()` is true.
+    // The purpose of this function is to handle exceptions from JNI calls where
+    // the return value does not signal success or failure.
+    void CheckNotThrown(JNIEnv* env)
+    {
+        if (env->ExceptionOccurred()) throw JavaExceptionThrown();
     }
 
     // This function converts an in-flight C++ exception to an in-flight Java
@@ -274,10 +314,17 @@ namespace
                 case dsb::model::INTEGER_DATATYPE:  return integer_;
                 case dsb::model::BOOLEAN_DATATYPE:  return boolean_;
                 case dsb::model::STRING_DATATYPE:   return string_;
-                default:
-                    JDSB_REQUIRE(env_, false);
-                    return nullptr; // never get here
+                default: JDSB_FATAL(env_, "Unsupported data type encountered");
             }
+        }
+
+        dsb::model::DataType CppValue(jobject x) const
+        {
+            if (env_->IsSameObject(x, real_))         return dsb::model::REAL_DATATYPE;
+            else if (env_->IsSameObject(x, integer_)) return dsb::model::INTEGER_DATATYPE;
+            else if (env_->IsSameObject(x, boolean_)) return dsb::model::BOOLEAN_DATATYPE;
+            else if (env_->IsSameObject(x, string_))  return dsb::model::STRING_DATATYPE;
+            else JDSB_FATAL(env_, "Unsupported data type encountered");
         }
 
     private:
@@ -314,9 +361,7 @@ namespace
                 case dsb::model::INPUT_CAUSALITY:                return input_;
                 case dsb::model::OUTPUT_CAUSALITY:               return output_;
                 case dsb::model::LOCAL_CAUSALITY:                return local_;
-                default:
-                    JDSB_REQUIRE(env_, false);
-                    return nullptr; // never get here
+                default: JDSB_FATAL(env_, "Unsupported variable causality encountered");
             }
         }
 
@@ -355,9 +400,7 @@ namespace
                 case dsb::model::TUNABLE_VARIABILITY:    return tunable_;
                 case dsb::model::DISCRETE_VARIABILITY:   return discrete_;
                 case dsb::model::CONTINUOUS_VARIABILITY: return continuous_;
-                default:
-                    JDSB_REQUIRE(env_, false);
-                    return nullptr; // never get here
+                default: JDSB_FATAL(env_, "Unsupported variable variability encountered");
             }
         }
 
@@ -638,6 +681,236 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_addSlaveNative(
         const auto slaveLoc = reinterpret_cast<const dsb::net::SlaveLocator*>(slaveLocatorPtr);
         return reinterpret_cast<jlong>(new FutureVariant(
             exe->AddSlave(*slaveLoc, std::chrono::milliseconds(commTimeout_ms))));
+    } catch (...) {
+        RethrowAsJavaException(env);
+        return 0;
+    }
+}
+
+namespace
+{
+    class ScalarValueConverter
+    {
+    public:
+        ScalarValueConverter(JNIEnv* env)
+            : env_(env),
+              dtConv_(env),
+              getDataType_(nullptr),
+              getRealValue_(nullptr),
+              getIntegerValue_(nullptr),
+              getBooleanValue_(nullptr),
+              getStringValue_(nullptr)
+        {
+            const auto clazz = env->FindClass("com/sfh/dsb/ScalarValue");
+            CheckJNIReturn(clazz);
+
+            CheckJNIReturn((getDataType_ = env->GetMethodID(
+                clazz, "getDataType", "()Lcom/sfh/dsb/DataType;")));
+            CheckJNIReturn((getRealValue_ = env->GetMethodID(
+                clazz, "getRealValue", "()D")));
+            CheckJNIReturn((getIntegerValue_ = env->GetMethodID(
+                clazz, "getIntegerValue", "()I")));
+            CheckJNIReturn((getBooleanValue_ = env->GetMethodID(
+                clazz, "getBooleanValue", "()Z")));
+            CheckJNIReturn((getStringValue_ = env->GetMethodID(
+                clazz, "getStringValue", "()Ljava/lang/String;")));
+        }
+
+        dsb::model::ScalarValue ToCpp(jobject obj)
+        {
+            const auto jDataType = env_->CallObjectMethod(obj, getDataType_);
+            CheckNotThrown(env_);
+            const auto dataType = dtConv_.CppValue(jDataType);
+
+            dsb::model::ScalarValue sv;
+            switch (dataType) {
+                case dsb::model::REAL_DATATYPE:
+                    sv = env_->CallDoubleMethod(obj, getRealValue_);
+                    break;
+                case dsb::model::INTEGER_DATATYPE:
+                    sv = env_->CallIntMethod(obj, getIntegerValue_);
+                    break;
+                case dsb::model::BOOLEAN_DATATYPE:
+                    sv = env_->CallBooleanMethod(obj, getBooleanValue_);
+                    break;
+                case dsb::model::STRING_DATATYPE:
+                    sv = env_->CallObjectMethod(obj, getStringValue_);
+                    break;
+            }
+            CheckNotThrown(env_);
+            return sv;
+        }
+
+    private:
+        JNIEnv* env_;
+        DataTypeConverter dtConv_;
+        jmethodID getDataType_;
+        jmethodID getRealValue_;
+        jmethodID getIntegerValue_;
+        jmethodID getBooleanValue_;
+        jmethodID getStringValue_;
+    };
+
+    class VariableConverter
+    {
+    public:
+        VariableConverter(JNIEnv* env)
+            : env_(env),
+              getSlaveID_(nullptr),
+              getVariableID_(nullptr),
+              slaveID_getID_(nullptr)
+        {
+            const auto clazz = env->FindClass("com/sfh/dsb/Variable");
+            CheckJNIReturn(clazz);
+
+            CheckJNIReturn((getSlaveID_ = env->GetMethodID(
+                clazz, "getSlaveID", "()Lcom/sfh/dsb/SlaveID;")));
+            CheckJNIReturn((getVariableID_ = env->GetMethodID(
+                clazz, "getVariableID", "()I")));
+
+            const auto siClass = env->FindClass("com/sfh/dsb/SlaveID");
+            CheckJNIReturn(siClass);
+            CheckJNIReturn((slaveID_getID_ = env->GetMethodID(
+                siClass, "getID", "()I")));
+        }
+
+        dsb::model::Variable ToCpp(jobject obj)
+        {
+            const auto jSlaveID = env_->CallObjectMethod(obj, getSlaveID_);
+            CheckNotThrown(env_);
+            const auto jSlaveIDValue = env_->CallIntMethod(jSlaveID, slaveID_getID_);
+            CheckNotThrown(env_);
+            const auto jVariableID = env_->CallIntMethod(obj, getVariableID_);
+            CheckNotThrown(env_);
+            return dsb::model::Variable(
+                boost::numeric_cast<dsb::model::SlaveID>(jSlaveIDValue),
+                boost::numeric_cast<dsb::model::VariableID>(jVariableID));
+        }
+
+    private:
+        JNIEnv* env_;
+        jmethodID getSlaveID_;
+        jmethodID getVariableID_;
+        jmethodID slaveID_getID_;
+    };
+
+    class VariableSettingConverter
+    {
+    public:
+        VariableSettingConverter(JNIEnv* env)
+            : env_(env),
+              scalarConv_(env),
+              varConv_(env),
+              getVariableID_(nullptr),
+              getValue_(nullptr),
+              getConnectedOutput_(nullptr)
+        {
+            const auto clazz = env->FindClass("com/sfh/dsb/VariableSetting");
+            CheckJNIReturn(clazz);
+
+            CheckJNIReturn((getVariableID_ = env->GetMethodID(
+                clazz, "getVariableID", "()I")));
+            CheckJNIReturn((getValue_ = env->GetMethodID(
+                clazz, "getValue", "()Lcom/sfh/dsb/ScalarValue;")));
+            CheckJNIReturn((getConnectedOutput_ = env->GetMethodID(
+                clazz, "getConnectedOutput", "()Lcom/sfh/dsb/Variable;")));
+        }
+
+        dsb::model::VariableSetting ToCpp(jobject obj)
+        {
+            const auto jVariableID = env_->CallIntMethod(obj, getVariableID_);
+            CheckNotThrown(env_);
+            const auto jValue = env_->CallObjectMethod(obj, getValue_);
+            CheckNotThrown(env_);
+            const auto jConnectedOutput = env_->CallObjectMethod(obj, getConnectedOutput_);
+            CheckNotThrown(env_);
+
+            const auto variableID =
+                boost::numeric_cast<dsb::model::VariableID>(jVariableID);
+            if (jValue) {
+                if (jConnectedOutput) {
+                    return dsb::model::VariableSetting(
+                        variableID,
+                        scalarConv_.ToCpp(jValue),
+                        varConv_.ToCpp(jConnectedOutput));
+                } else {
+                    return dsb::model::VariableSetting(
+                        variableID,
+                        scalarConv_.ToCpp(jValue));
+                }
+            } else {
+                if (jConnectedOutput) {
+                    return dsb::model::VariableSetting(
+                        variableID,
+                        varConv_.ToCpp(jConnectedOutput));
+                } else {
+                    JDSB_FATAL(env_, "Invalid VariableSetting object encountered");
+                }
+            }
+
+        }
+
+    private:
+        JNIEnv* env_;
+        ScalarValueConverter scalarConv_;
+        VariableConverter varConv_;
+
+        jmethodID getVariableID_;
+        jmethodID getValue_;
+        jmethodID getConnectedOutput_;
+    };
+}
+
+JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_setVariablesNative(
+    JNIEnv* env,
+    jclass,
+    jlong selfPtr,
+    jint slaveID,
+    jobject variableSettings,
+    jint timeout_ms)
+{
+    try {
+        EnforceNotNull(selfPtr);
+        EnforceNotNull(variableSettings);
+        const auto exe = reinterpret_cast<dsb::execution::Controller*>(selfPtr);
+
+        const auto iterableClass = env->GetObjectClass(variableSettings);
+        CheckJNIReturn(iterableClass);
+        const auto iteratorMethod = env->GetMethodID(
+            iterableClass, "iterator", "()Ljava/util/Iterator;");
+        CheckJNIReturn(iteratorMethod);
+        const auto iteratorObject = env->CallObjectMethod(
+            variableSettings, iteratorMethod);
+        CheckNotThrown(env);
+
+        const auto iteratorClass = env->GetObjectClass(iteratorObject);
+        CheckJNIReturn(iteratorClass);
+        const auto hasNextMethod = env->GetMethodID(
+            iteratorClass, "hasNext", "()Z");
+        CheckJNIReturn(hasNextMethod);
+        const auto nextMethod = env->GetMethodID(
+            iteratorClass, "next", "()Ljava/lang/Object;");
+        CheckJNIReturn(nextMethod);
+
+        VariableSettingConverter vsConv(env);
+        std::vector<dsb::model::VariableSetting> vsVec;
+        for (;;) {
+            const bool hasNext = env->CallBooleanMethod(iteratorObject, hasNextMethod);
+            CheckNotThrown(env);
+            if (!hasNext) break;
+
+            const auto jVariableSetting = env->CallObjectMethod(
+                iteratorObject, nextMethod);
+            CheckNotThrown(env);
+
+            vsVec.push_back(vsConv.ToCpp(jVariableSetting));
+        }
+
+        return reinterpret_cast<jlong>(new FutureVariant(
+            exe->SetVariables(
+                boost::numeric_cast<dsb::model::SlaveID>(slaveID),
+                vsVec,
+                std::chrono::milliseconds(timeout_ms))));
     } catch (...) {
         RethrowAsJavaException(env);
         return 0;

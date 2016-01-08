@@ -38,6 +38,38 @@ public abstract class Future implements AutoCloseable
         System.loadLibrary("jdsb");
     }
 
+    /**
+     * A future with no particular result type/value.
+     * <p>
+     * This object may be used to figure out simply whether the asynchronous
+     * operation succeeded or not, by calling {@link #get}.
+     */
+    public static class Void extends Future
+    {
+        Void(long ptr) { super(ptr); }
+
+        /**
+         * Blocks until the asynchronous operation completes, and throws an
+         * exception if it failed.
+         * <p>
+         * This function may only be called once.
+         *
+         * @throws Exception if the asynchronous operation failed and an
+         *      exception was stored in the shared state.
+         */
+        public void get() throws Exception
+        {
+            if (getNativePtr() == 0) throw new IllegalStateException();
+            try {
+                getValueNative(getNativePtr());
+            } finally {
+                close();
+            }
+        }
+
+        private static native void getValueNative(long selfPtr) throws Exception;
+    }
+
     /** A future result of type {@link com.sfh.dsb.SlaveID}. */
     public static class SlaveID extends Future
     {

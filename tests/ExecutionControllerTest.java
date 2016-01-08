@@ -1,11 +1,15 @@
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+
 import com.sfh.dsb.DomainController;
 import com.sfh.dsb.DomainLocator;
 import com.sfh.dsb.ExecutionController;
 import com.sfh.dsb.Future;
+import com.sfh.dsb.ScalarValue;
 import com.sfh.dsb.SlaveID;
 import com.sfh.dsb.SlaveLocator;
+import com.sfh.dsb.VariableSetting;
 
 
 public class ExecutionControllerTest
@@ -13,8 +17,9 @@ public class ExecutionControllerTest
     public static void main(String[] args) throws Exception
     {
         // Connect to domain and obtain list of slave types
-        try (DomainLocator domLoc = new DomainLocator("tcp://localhost")) {
-        try (DomainController dom = new DomainController(domLoc)) {
+        try (
+            DomainLocator domLoc = new DomainLocator("tcp://localhost");
+            DomainController dom = new DomainController(domLoc)) {
         Thread.sleep(2000); // wait for the info to trickle in
         Map<String, DomainController.SlaveType> slaveTypes =
             new HashMap<String, DomainController.SlaveType>();
@@ -32,10 +37,15 @@ public class ExecutionControllerTest
         try (SlaveLocator slaveLoc = dom.instantiateSlave(
                 slaveTypes.get("sfh.larky.identity"),
                 2000 /*ms*/)) {
-        Future.SlaveID sid = exe.addSlave(slaveLoc, 5000 /*ms*/);
-        sid.waitForResult();
-        if (!sid.waitForResult(1000)) throw new Exception();
-        sid.get();
-        }}}}
+        try (Future.SlaveID sid = exe.addSlave(slaveLoc, 5000 /*ms*/)) {
+
+        ArrayList ops = new ArrayList();
+        ops.add(new VariableSetting(0, new ScalarValue(3.14)));
+
+        try (Future.Void setVarsResult = exe.setVariables(sid.get(), ops, 2000 /*ms*/)) {
+        setVarsResult.get();
+
+        // Close all the try-with-resources statements we've opened above
+        }}}}}
     }
 }

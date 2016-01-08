@@ -16,9 +16,12 @@ set(nativeClasses
 set(normalClasses
     "${package}.Causality"
     "${package}.DataType"
+    "${package}.ScalarValue"
     "${package}.SlaveID"
     "${package}.Variability"
     "${package}.VariableDescription"
+    "${package}.Variable"
+    "${package}.VariableSetting"
 )
 
 # ==============================================================================
