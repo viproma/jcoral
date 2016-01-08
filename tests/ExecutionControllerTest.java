@@ -29,8 +29,6 @@ public class ExecutionControllerTest
 
         // Spawn a new execution on this domain
         try (ExecutionController exe = ExecutionController.spawnExecution(domLoc)) {
-        exe.endConfig();
-        exe.beginConfig();
         exe.setSimulationTime(200.0);
 
         // Instantiate a slave
@@ -44,6 +42,17 @@ public class ExecutionControllerTest
 
         try (Future.Void setVarsResult = exe.setVariables(sid.get(), ops, 2000 /*ms*/)) {
         setVarsResult.get();
+        exe.endConfig();
+
+        for (int i = 0; i < 10; ++i) {
+            if (exe.step(0.1, 5000 /*ms*/) == ExecutionController.StepResult.COMPLETE) {
+                exe.acceptStep(2000 /*ms*/);
+                System.out.println("Step complete: " + i);
+            } else {
+                System.out.println("Step failed: " + i);
+                break;
+            }
+        }
 
         // Close all the try-with-resources statements we've opened above
         }}}}}

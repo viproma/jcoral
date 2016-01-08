@@ -14,6 +14,8 @@ public final class ExecutionController implements AutoCloseable
         System.loadLibrary("jdsb");
     }
 
+    public enum StepResult { COMPLETE, FAILED }
+
     public static ExecutionController spawnExecution(
         DomainLocator domain, String executionName, int commTimeout_s)
         throws Exception
@@ -88,6 +90,23 @@ public final class ExecutionController implements AutoCloseable
             setVariablesNative(nativePtr, slave.getID(), variableSettings, timeout_ms));
     }
 
+    public StepResult step(double stepSize, int timeout_ms) throws Exception
+    {
+        CheckSelf();
+        if (stepSize < 0.0) throw new IllegalArgumentException("Negative step size");
+        if (timeout_ms <= 0) throw new IllegalArgumentException("Nonpositive timeout");
+        return stepNative(nativePtr, stepSize, timeout_ms)
+            ? StepResult.COMPLETE
+            : StepResult.FAILED;
+    }
+
+    public void acceptStep(int timeout_ms) throws Exception
+    {
+        CheckSelf();
+        if (timeout_ms <= 0) throw new IllegalArgumentException("Nonpositive timeout");
+        acceptStepNative(nativePtr, timeout_ms);
+    }
+
 
     // =========================================================================
 
@@ -119,6 +138,11 @@ public final class ExecutionController implements AutoCloseable
         int slaveID,
         Iterable<VariableSetting> variableSettings,
         int timeout_ms)
+        throws Exception;
+    private static native boolean stepNative(
+        long selfPtr, double stepSize, int timeout_ms)
+        throws Exception;
+    private static native void acceptStepNative(long selfPtr, int timeout_ms)
         throws Exception;
 
     long nativePtr = 0;

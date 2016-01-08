@@ -918,6 +918,41 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_setVariablesNative(
 }
 
 
+JNIEXPORT jboolean JNICALL Java_com_sfh_dsb_ExecutionController_stepNative(
+    JNIEnv* env,
+    jclass,
+    jlong selfPtr,
+    jdouble stepSize,
+    jint timeout_ms)
+{
+    try {
+        EnforceNotNull(selfPtr);
+        const auto exe = reinterpret_cast<dsb::execution::Controller*>(selfPtr);
+
+        const auto result = exe->Step(
+            boost::numeric_cast<dsb::model::TimeDuration>(stepSize),
+            std::chrono::milliseconds(timeout_ms));
+        return result == dsb::execution::STEP_COMPLETE;
+    } catch (...) {
+        RethrowAsJavaException(env);
+        return false;
+    }
+}
+
+
+JNIEXPORT void JNICALL Java_com_sfh_dsb_ExecutionController_acceptStepNative(
+    JNIEnv* env, jclass, jlong selfPtr, jint timeout_ms)
+{
+    try {
+        EnforceNotNull(selfPtr);
+        const auto exe = reinterpret_cast<dsb::execution::Controller*>(selfPtr);
+        exe->AcceptStep(std::chrono::milliseconds(timeout_ms));
+    } catch (...) {
+        RethrowAsJavaException(env);
+    }
+}
+
+
 // =============================================================================
 // ExecutionLocator
 // =============================================================================
