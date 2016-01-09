@@ -2,7 +2,6 @@ package com.sfh.dsb;
 
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 import com.sfh.dsb.DomainLocator;
@@ -25,14 +24,14 @@ public class DomainController implements AutoCloseable
         public String getAuthor() { return author; }
         public String getVersion() { return version; }
 
-        public Iterator<VariableDescription> getVariables()
+        public Iterable<VariableDescription> getVariables()
         {
-            return Arrays.asList(variables).iterator();
+            return Arrays.asList(variables);
         }
 
-        public Iterator<String> getProviders()
+        public Iterable<String> getProviders()
         {
-            return Arrays.asList(providers).iterator();
+            return Arrays.asList(providers);
         }
 
         private String name;

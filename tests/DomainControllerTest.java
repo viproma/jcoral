@@ -26,16 +26,14 @@ public class DomainControllerTest
                 System.out.println("  " + st.getDescription());
                 System.out.println("  " + st.getAuthor());
                 System.out.println("  " + st.getVersion());
-                System.out.print("  Variables:");
-                Iterator<VariableDescription> variables = st.getVariables();
-                while (variables.hasNext()) {
-                    System.out.print("    ");
-                    printVarDesc(variables.next());
-                    System.out.println();
+                System.out.println("  Variables:");
+                for (VariableDescription vd : st.getVariables()) {
+                    printVarDesc("    ", vd);
                 }
                 System.out.println("  Providers:");
-                Iterator<String> providers = st.getProviders();
-                while (providers.hasNext()) System.out.println("    " + providers.next() + "; ");
+                for (String p : st.getProviders()) {
+                    System.out.println("    " + p);
+                }
             }
 
             SlaveLocator slaveLoc = dom.instantiateSlave(
@@ -45,8 +43,9 @@ public class DomainControllerTest
         }}
     }
 
-    public static void printVarDesc(VariableDescription vd)
+    public static void printVarDesc(String prefix, VariableDescription vd)
     {
+        System.out.print(prefix);
         System.out.print(vd.getID());
         System.out.print(" ");
         System.out.print(vd.getName());

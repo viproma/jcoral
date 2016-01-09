@@ -17,6 +17,7 @@ set(normalClasses
     "${package}.Causality"
     "${package}.DataType"
     "${package}.ScalarValue"
+    "${package}.SimulationProgressMonitor"
     "${package}.SlaveID"
     "${package}.Variability"
     "${package}.VariableDescription"
