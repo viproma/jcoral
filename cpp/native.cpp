@@ -551,9 +551,9 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_DomainLocator_createNative(
 JNIEXPORT void JNICALL Java_com_sfh_dsb_DomainLocator_destroyNative(
     JNIEnv* env,
     jclass,
-    jlong ptr)
+    jlong selfPtr)
 {
-    delete reinterpret_cast<dsb::net::DomainLocator*>(ptr);
+    delete reinterpret_cast<dsb::net::DomainLocator*>(selfPtr);
 }
 
 
