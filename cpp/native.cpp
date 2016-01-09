@@ -284,9 +284,9 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_DomainController_createNative(
 JNIEXPORT void JNICALL Java_com_sfh_dsb_DomainController_destroyNative(
     JNIEnv* env,
     jclass,
-    jlong ptr)
+    jlong selfPtr)
 {
-    delete reinterpret_cast<dsb::domain::Controller*>(ptr);
+    delete reinterpret_cast<dsb::domain::Controller*>(selfPtr);
 }
 
 namespace
@@ -307,7 +307,7 @@ namespace
             string_ = GetEnumField(env, "com/sfh/dsb/DataType", "STRING");
         }
 
-        jobject JavaValue(dsb::model::DataType dt) const
+        jobject ToJava(dsb::model::DataType dt) const
         {
             switch (dt) {
                 case dsb::model::REAL_DATATYPE:     return real_;
@@ -318,7 +318,7 @@ namespace
             }
         }
 
-        dsb::model::DataType CppValue(jobject x) const
+        dsb::model::DataType ToCpp(jobject x) const
         {
             if (env_->IsSameObject(x, real_))         return dsb::model::REAL_DATATYPE;
             else if (env_->IsSameObject(x, integer_)) return dsb::model::INTEGER_DATATYPE;
@@ -353,7 +353,7 @@ namespace
             local_ = GetEnumField(env, "com/sfh/dsb/Causality", "LOCAL");
         }
 
-        jobject JavaValue(dsb::model::Causality c) const
+        jobject ToJava(dsb::model::Causality c) const
         {
             switch (c) {
                 case dsb::model::PARAMETER_CAUSALITY:            return parameter_;
@@ -392,7 +392,7 @@ namespace
             continuous_ = GetEnumField(env, "com/sfh/dsb/Variability", "CONTINUOUS");
         }
 
-        jobject JavaValue(dsb::model::Variability c) const
+        jobject ToJava(dsb::model::Variability c) const
         {
             switch (c) {
                 case dsb::model::CONSTANT_VARIABILITY:   return constant_;
@@ -427,9 +427,9 @@ namespace
         CheckJNIReturn(jVarDesc);
         SetField(env, jVarDesc, "id", cVarDesc.ID());
         SetField(env, jVarDesc, "name", cVarDesc.Name());
-        SetField(env, jVarDesc, "dataType", "Lcom/sfh/dsb/DataType;", dtConv.JavaValue(cVarDesc.DataType()));
-        SetField(env, jVarDesc, "causality", "Lcom/sfh/dsb/Causality;", csConv.JavaValue(cVarDesc.Causality()));
-        SetField(env, jVarDesc, "variability", "Lcom/sfh/dsb/Variability;", vbConv.JavaValue(cVarDesc.Variability()));
+        SetField(env, jVarDesc, "dataType", "Lcom/sfh/dsb/DataType;", dtConv.ToJava(cVarDesc.DataType()));
+        SetField(env, jVarDesc, "causality", "Lcom/sfh/dsb/Causality;", csConv.ToJava(cVarDesc.Causality()));
+        SetField(env, jVarDesc, "variability", "Lcom/sfh/dsb/Variability;", vbConv.ToJava(cVarDesc.Variability()));
         return jVarDesc;
     }
 
@@ -519,7 +519,7 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_DomainController_instantiateSlaveNative
             dom->InstantiateSlave(
                 ToString(env, slaveUUID),
                 std::chrono::milliseconds(timeout_ms),
-                ToString(env, provider)));
+                provider ? ToString(env, provider) : std::string()));
         return reinterpret_cast<jlong>(slaveLoc);
     } catch (...) {
         RethrowAsJavaException(env);
@@ -720,7 +720,7 @@ namespace
         {
             const auto jDataType = env_->CallObjectMethod(obj, getDataType_);
             CheckNotThrown(env_);
-            const auto dataType = dtConv_.CppValue(jDataType);
+            const auto dataType = dtConv_.ToCpp(jDataType);
 
             dsb::model::ScalarValue sv;
             switch (dataType) {
