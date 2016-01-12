@@ -93,7 +93,9 @@ set(docDir "${CMAKE_BINARY_DIR}/javadoc")
 add_custom_command(
     OUTPUT "${docDir}"
     COMMAND "${Java_JAVADOC_EXECUTABLE}" "-d" "${docDir}" "-public"
-        "-sourcepath" "${CMAKE_CURRENT_SOURCE_DIR}" "${package}"
+        "-sourcepath" "${CMAKE_CURRENT_SOURCE_DIR}"
+        "-link" "http://docs.oracle.com/javase/7/docs/api"
+        "${package}"
     DEPENDS ${javaFiles}
     VERBATIM
 )
