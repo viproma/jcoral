@@ -10,7 +10,12 @@ import com.sfh.dsb.Variable;
  */
 public class VariableSetting
 {
-    /** Indicates a variable which should be given a specific value. */
+    /**
+     * Indicates a variable which should be given a specific value.
+     * <p>
+     * It is up to the caller to ensure that the data type of the value matches
+     * the one expected for the variable (see {@link VariableDescription}).
+     */
     public VariableSetting(int variableID, ScalarValue value)
     {
         variableID_ = variableID;

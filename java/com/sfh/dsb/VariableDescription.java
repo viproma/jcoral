@@ -6,7 +6,7 @@ import com.sfh.dsb.Variability;
 
 
 /**
- * Information about one of the variables in a slave type.
+ * Information about one of the variables associated with a slave type.
  */
 public class VariableDescription
 {
