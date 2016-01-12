@@ -1,11 +1,15 @@
 package com.sfh.dsb;
 
+
 /**
  * An opaque class which contains the information needed to connect to an
  * execution.
- *
- * Remember to call close() once the object is no longer needed, to avoid
- * memory/resource leaks in the underlying native code.
+ * <p>
+ * Objects of this class should always be disposed of with {@link #close} when
+ * they are no longer needed, to avoid resource leaks in the underlying native
+ * code. (A nice, automated way to do this is to use
+ * <a href=https://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html">the
+ * try-with-resources statement</a>.)
  */
 public final class ExecutionLocator implements AutoCloseable
 {
@@ -14,25 +18,27 @@ public final class ExecutionLocator implements AutoCloseable
         System.loadLibrary("jdsb");
     }
 
-    ExecutionLocator(long nativePtr)
-    {
-        this.nativePtr = nativePtr;
-    }
-
     /**
-     * Releases memory and any other resources associated with the object.
+     * Releases native resources (such as memory) associated with this object.
+     * <p>
+     * After this function has been called, any attempt to use the class may
+     * result in an error.
      */
     public void close() {
-        if (nativePtr != 0) {
-            destroyNative(nativePtr);
-            nativePtr = 0;
+        if (nativePtr_ != 0) {
+            destroyNative(nativePtr_);
+            nativePtr_ = 0;
         }
     }
 
-    long getNativePtr() { return nativePtr; }
+    ExecutionLocator(long nativePtr_)
+    {
+        this.nativePtr_ = nativePtr_;
+    }
+
+    long getNativePtr() { return nativePtr_; }
 
     private static native void destroyNative(long selfPtr);
 
-    private long nativePtr = 0;
+    private long nativePtr_ = 0;
 }
-
