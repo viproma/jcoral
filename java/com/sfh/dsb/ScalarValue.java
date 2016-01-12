@@ -38,10 +38,10 @@ public class ScalarValue
     }
 
     /** Returns the value's data type. */
-    DataType getDataType() { return dataType_; }
+    public DataType getDataType() { return dataType_; }
 
     /** Returns the value of the variable. */
-    double getRealValue()
+    public double getRealValue()
     {
         if (dataType_ != DataType.REAL) {
             throw new IllegalStateException("Wrong data type");
@@ -50,7 +50,7 @@ public class ScalarValue
     }
 
     /** Returns the value of the variable. */
-    int getIntegerValue()
+    public int getIntegerValue()
     {
         if (dataType_ != DataType.INTEGER) {
             throw new IllegalStateException("Wrong data type");
@@ -59,7 +59,7 @@ public class ScalarValue
     }
 
     /** Returns the value of the variable. */
-    boolean getBooleanValue()
+    public boolean getBooleanValue()
     {
         if (dataType_ != DataType.BOOLEAN) {
             throw new IllegalStateException("Wrong data type");
@@ -68,7 +68,7 @@ public class ScalarValue
     }
 
     /** Returns the value of the variable. */
-    String getStringValue()
+    public String getStringValue()
     {
         if (dataType_ != DataType.STRING) {
             throw new IllegalStateException("Wrong data type");
