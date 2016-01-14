@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 3.0.0)
 project(jdsb)
 enable_testing()
 
+# Boost settings.  find_package(dsb) below also sets up Boost, so we need to
+# configure them now.
+set (Boost_USE_MULTITHREADED ON)
+set (Boost_USE_STATIC_LIBS ON)
+add_definitions("-DBOOST_ALL_NO_LIB") # Disables Boost's auto-linking feature.
+add_definitions("-DBOOST_SYSTEM_NO_DEPRECATED") # Disable some deprecated stuff.
+
 find_package(Java 1.7 REQUIRED)
 find_package(JNI REQUIRED)
 find_package(dsb REQUIRED) # also finds Boost

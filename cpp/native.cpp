@@ -1,3 +1,7 @@
+#ifdef _MSC_VER
+#	pragma warning(disable: 4800)
+#endif
+
 #include <cassert>
 #include <exception>
 #include <functional>
@@ -249,11 +253,13 @@ namespace
         assert(env);
         assert(elementClass);
         assert(conv);
-        const auto array = env->NewObjectArray(vec.size(), elementClass, nullptr);
+        const auto array = env->NewObjectArray(
+            boost::numeric_cast<jsize>(vec.size()), elementClass, nullptr);
         CheckJNIReturn(array);
         for (size_t i = 0; i < vec.size(); ++i) {
             const auto element = conv(vec[i]);
-            env->SetObjectArrayElement(array, i, element);
+            env->SetObjectArrayElement(
+                array, boost::numeric_cast<jsize>(i), element);
         }
         return array;
     }
