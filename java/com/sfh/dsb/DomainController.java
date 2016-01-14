@@ -17,7 +17,7 @@ import com.sfh.dsb.VariableDescription;
  * Objects of this class should always be disposed of with {@link #close} when
  * they are no longer needed, to avoid resource leaks in the underlying native
  * code. (A nice, automated way to do this is to use
- * <a href=https://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html">the
+ * <a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html">the
  * try-with-resources statement</a>.)
  *
  * @see ExecutionController
