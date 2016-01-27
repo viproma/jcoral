@@ -686,7 +686,10 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_addSlaveNative(
         const auto exe = reinterpret_cast<dsb::execution::Controller*>(selfPtr);
         const auto slaveLoc = reinterpret_cast<const dsb::net::SlaveLocator*>(slaveLocatorPtr);
         return reinterpret_cast<jlong>(new FutureVariant(
-            exe->AddSlave(*slaveLoc, std::chrono::milliseconds(commTimeout_ms))));
+            exe->AddSlave(
+                *slaveLoc,
+                std::string(),
+                std::chrono::milliseconds(commTimeout_ms))));
     } catch (...) {
         RethrowAsJavaException(env);
         return 0;
