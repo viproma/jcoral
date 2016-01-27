@@ -11,6 +11,7 @@ import com.sfh.dsb.ScalarValue;
 import com.sfh.dsb.SimulationProgressMonitor;
 import com.sfh.dsb.SlaveID;
 import com.sfh.dsb.SlaveLocator;
+import com.sfh.dsb.Variable;
 import com.sfh.dsb.VariableDescription;
 import com.sfh.dsb.VariableSetting;
 
@@ -44,24 +45,48 @@ public class ExecutionControllerTest
 
         // Make a list of variables for the "sine" model type
         DomainController.SlaveType sine = slaveTypes.get("sfh.larky.sine");
-        Map<String, Integer> variableIDs = new HashMap<String, Integer>();
+        Map<String, Integer> sineVariableIDs = new HashMap<String, Integer>();
         for (VariableDescription varDesc : sine.getVariables()) {
-            variableIDs.put(varDesc.getName(), varDesc.getID());
+            sineVariableIDs.put(varDesc.getName(), varDesc.getID());
+        }
+
+        // ...and do the same for "identity"
+        DomainController.SlaveType ident = slaveTypes.get("sfh.larky.identity");
+        Map<String, Integer> identVariableIDs = new HashMap<String, Integer>();
+        for (VariableDescription varDesc : ident.getVariables()) {
+            identVariableIDs.put(varDesc.getName(), varDesc.getID());
         }
 
         // Spawn a new execution on this domain, instantiate a slave, and add
         // it to the execution.
         try (
         ExecutionController exe = ExecutionController.spawnExecution(domLoc);
-        SlaveLocator slaveLoc = dom.instantiateSlave(sine, slaveInstantiationTimeout_ms);
+        SlaveLocator sineLoc = dom.instantiateSlave(sine, slaveInstantiationTimeout_ms);
+        SlaveLocator identLoc = dom.instantiateSlave(ident, slaveInstantiationTimeout_ms);
         ) {
-        SlaveID slaveID = exe.addSlave(slaveLoc, commandTimeout_ms).get();
+        Future.SlaveID fSineID = exe.addSlave(sineLoc, commandTimeout_ms);
+        Future.SlaveID fIdentID = exe.addSlave(identLoc, commandTimeout_ms);
+
+        SlaveID sineID = fSineID.get();
+        SlaveID identID = fIdentID.get();
 
         // Set a few variables.
-        List<VariableSetting> setVarOps = new ArrayList<VariableSetting>();
-        setVarOps.add(new VariableSetting(variableIDs.get("a"), new ScalarValue(2.0)));
-        setVarOps.add(new VariableSetting(variableIDs.get("w"), new ScalarValue(2*Math.PI)));
-        exe.setVariables(slaveID, setVarOps, commandTimeout_ms).get();
+        List<VariableSetting> sineSetVarOps = new ArrayList<VariableSetting>();
+        sineSetVarOps.add(new VariableSetting(sineVariableIDs.get("a"), new ScalarValue(2.0)));
+        sineSetVarOps.add(new VariableSetting(sineVariableIDs.get("w"), new ScalarValue(2*Math.PI)));
+
+        List<VariableSetting> identSetVarOps = new ArrayList<VariableSetting>();
+        identSetVarOps.add(new VariableSetting(
+            identVariableIDs.get("realIn"), new Variable(sineID, sineVariableIDs.get("y"))));
+        identSetVarOps.add(new VariableSetting(
+            identVariableIDs.get("integerIn"), new ScalarValue(123)));
+        identSetVarOps.add(new VariableSetting(
+            identVariableIDs.get("booleanIn"), new ScalarValue(true)));
+        identSetVarOps.add(new VariableSetting(
+            identVariableIDs.get("stringIn"), new ScalarValue("Hello World")));
+
+        exe.setVariables(sineID, sineSetVarOps, commandTimeout_ms).get();
+        exe.setVariables(identID, identSetVarOps, commandTimeout_ms).get();
 
         // Run simulation
         exe.endConfig();
