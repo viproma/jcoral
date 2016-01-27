@@ -740,10 +740,12 @@ namespace
                     sv = env_->CallIntMethod(obj, getIntegerValue_);
                     break;
                 case dsb::model::BOOLEAN_DATATYPE:
-                    sv = env_->CallBooleanMethod(obj, getBooleanValue_);
+                    sv = (env_->CallBooleanMethod(obj, getBooleanValue_) ? true : false);
                     break;
                 case dsb::model::STRING_DATATYPE:
-                    sv = env_->CallObjectMethod(obj, getStringValue_);
+                    sv = ToString(
+                        env_,
+                        static_cast<jstring>(env_->CallObjectMethod(obj, getStringValue_)));
                     break;
             }
             CheckNotThrown(env_);
