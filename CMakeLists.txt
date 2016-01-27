@@ -5,7 +5,12 @@ enable_testing()
 # Boost settings.  find_package(dsb) below also sets up Boost, so we need to
 # configure them now.
 set (Boost_USE_MULTITHREADED ON)
-set (Boost_USE_STATIC_LIBS ON)
+if (WIN32)
+    # It's convenient to link the Boost libs statically, but we can't do that on
+    # Linux because the ones in the package repos are typically not relocatable,
+    # and therefore can't be linked into a shared library.
+    set (Boost_USE_STATIC_LIBS ON)
+endif ()
 add_definitions("-DBOOST_ALL_NO_LIB") # Disables Boost's auto-linking feature.
 add_definitions("-DBOOST_SYSTEM_NO_DEPRECATED") # Disable some deprecated stuff.
 
