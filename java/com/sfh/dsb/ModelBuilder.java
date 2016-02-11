@@ -169,7 +169,7 @@ public class ModelBuilder
      *      If <code>slaveName</code> does not refer to a slave in the
      *      simulation.
      */
-    public DomainController.SlaveType getSlaveType(String slaveName)
+    public DomainController.SlaveType getSlaveTypeOf(String slaveName)
         throws EntityNotFoundException
     {
         ModelSlaveType st = slaves_.get(slaveName);
@@ -387,50 +387,44 @@ public class ModelBuilder
     }
 
     /**
-     * Convenience method which creates a list of all variables in the model
-     * which have <em>not</em> been connected yet.
+     * Convenience method which creates a list of all input variables in the
+     * model which have <em>not</em> been connected yet.
      * <p>
      * This method is primarily meant as a debugging tool.
      * Note that the list is rebuilt each time this function is called;
      * it is not a view on some internal data structure.
      */
-    public List<Variable> getUnconnectedVariables()
+    public List<Variable> getUnconnectedInputs()
     {
-        // Make a data structure which contains all connected variables
+        // Make a data structure which contains all connected input variables
         Map<String, Set<VariableDescription>> connected =
             new HashMap<String, Set<VariableDescription>>();
         for (Map.Entry<String, Map<VariableDescription, Variable>> slaveConns :
              connections_.entrySet())
         {
-            String iSlaveName = slaveConns.getKey();
-            Set<VariableDescription> iConnected = connected.get(iSlaveName);
-            if (iConnected == null) {
-                iConnected = new HashSet<VariableDescription>();
-                connected.put(iSlaveName, iConnected);
+            String slaveName = slaveConns.getKey();
+            Set<VariableDescription> slaveConnected = connected.get(slaveName);
+            if (slaveConnected == null) {
+                slaveConnected = new HashSet<VariableDescription>();
+                connected.put(slaveName, slaveConnected);
             }
 
             for (Map.Entry<VariableDescription, Variable> conn :
                 slaveConns.getValue().entrySet())
             {
-                iConnected.add(conn.getKey());
-                
-                String oSlaveName = conn.getValue().getSlaveName();
-                Set<VariableDescription> oConnected = connected.get(oSlaveName);
-                if (oConnected == null) {
-                    oConnected = new HashSet<VariableDescription>();
-                    connected.put(oSlaveName, oConnected);
-                }
-                oConnected.add(conn.getValue().getVariable());
+                slaveConnected.add(conn.getKey());
             }
         }
 
-        // Now, go through *all* variables and make a list of the ones
-        // that are not in 'connected'.
+        // Now, go through *all* variables and make a list of the input
+        // variables that are not in 'connected'.
         List<Variable> ret = new ArrayList<Variable>();
         for (Map.Entry<String, ModelSlaveType> slave : slaves_.entrySet()) {
             Set<VariableDescription> connectedVars = connected.get(slave.getKey());
             for (VariableDescription var : slave.getValue().variables.values()) {
-                if (connectedVars == null || !connectedVars.contains(var)) {
+                if (var.getCausality() == Causality.INPUT
+                    && (connectedVars == null || !connectedVars.contains(var)))
+                {
                     ret.add(new Variable(slave.getKey(), var));
                 }
             }
