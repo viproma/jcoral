@@ -31,6 +31,7 @@ foreach(className ${tests})
         COMMAND "${Java_JAVA_EXECUTABLE}"
             "-classpath" "${CMAKE_CURRENT_BINARY_DIR}${pathSep}${genJarPath}"
             "-Djava.library.path=$<TARGET_FILE_DIR:jdsb>"
+            "-enableassertions"
             "${className}"
     )
 endforeach()
