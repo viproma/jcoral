@@ -682,6 +682,7 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_addSlaveNative(
     jclass,
     jlong selfPtr,
     jlong slaveLocatorPtr,
+    jstring slaveName,
     jint commTimeout_ms)
 {
     try {
@@ -692,7 +693,7 @@ JNIEXPORT jlong JNICALL Java_com_sfh_dsb_ExecutionController_addSlaveNative(
         return reinterpret_cast<jlong>(new FutureVariant(
             exe->AddSlave(
                 *slaveLoc,
-                std::string(),
+                slaveName ? ToString(env, slaveName) : std::string{},
                 std::chrono::milliseconds(commTimeout_ms))));
     } catch (...) {
         RethrowAsJavaException(env);

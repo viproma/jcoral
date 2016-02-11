@@ -98,7 +98,7 @@ public class ModelBuilder
      * @param slaveName
      *      A unique name which will be associated with the slave. This can
      *      only contain alphanumeric characters and underscores, and the
-     *      first character must be a letter.
+     *      first character must be a letter. May not be empty.
      * @param typeName
      *      The name of the slave type.  This must correspond to a slave
      *      type that exists in the domain.
@@ -489,7 +489,7 @@ public class ModelBuilder
             for (Map.Entry<String, SlaveLocator> e : slaveLocators.entrySet()) {
                 futureSlaveIDs.put(
                     e.getKey(),
-                    execution.addSlave(e.getValue(), commandTimeout_ms));
+                    execution.addSlave(e.getValue(), e.getKey(), commandTimeout_ms));
             }
 
             // Wait for all network connections to be established

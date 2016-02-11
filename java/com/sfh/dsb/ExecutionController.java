@@ -163,6 +163,11 @@ public final class ExecutionController implements AutoCloseable
      *
      * @param slaveLocator
      *      Information about how to connect to a slave.
+     * @param slaveName
+     *      A unique name which will be associated with the slave. This can
+     *      only contain alphanumeric characters and underscores, and the
+     *      first character must be a letter.  Null or an empty string may
+     *      be given, in which case a default name will be used.
      * @param timeout_ms
      *      A timeout (in milliseconds) after which the command is assumed to
      *      have failed, e.g. because the slave is unreachable.
@@ -171,12 +176,22 @@ public final class ExecutionController implements AutoCloseable
      *      An object which can be used to obtain the result of the asynchronous
      *      operation, including a unique ID for the slave.
      */
-    public Future.SlaveID addSlave(SlaveLocator slaveLocator, int timeout_ms)
+    public Future.SlaveID addSlave(
+        SlaveLocator slaveLocator,
+        String slaveName,
+        int timeout_ms)
         throws Exception
     {
         CheckSelf();
-        return new Future.SlaveID(
-            addSlaveNative(nativePtr_, slaveLocator.getNativePtr(), timeout_ms));
+        return new Future.SlaveID(addSlaveNative(
+            nativePtr_, slaveLocator.getNativePtr(), slaveName, timeout_ms));
+    }
+
+    /** Forwards to {@link #addSlave} with <code>slaveName = null</code>. */
+    public Future.SlaveID addSlave(SlaveLocator slaveLocator, int timeout_ms)
+        throws Exception
+    {
+        return addSlave(slaveLocator, null, timeout_ms);
     }
 
     /**
@@ -395,7 +410,7 @@ public final class ExecutionController implements AutoCloseable
         long selfPtr, double startTime, double stopTime)
         throws Exception;
     private static native long addSlaveNative(
-        long selfPtr, long slaveLocatorPtr, int commTimeout_ms)
+        long selfPtr, long slaveLocatorPtr, String slaveName, int commTimeout_ms)
         throws Exception;
     private static native long setVariablesNative(
         long selfPtr,
