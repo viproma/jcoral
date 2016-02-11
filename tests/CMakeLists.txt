@@ -4,6 +4,7 @@ set(tests
     "DomainLocatorErrorTest"
     "ExecutionControllerTest"
     "ListSlaveTypeInfo"
+    "ModelBuilderTest"
 )
 
 if (WIN32)

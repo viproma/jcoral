@@ -16,6 +16,9 @@ set(nativeClasses
 set(normalClasses
     "${package}.Causality"
     "${package}.DataType"
+    "${package}.EntityNotFoundException"
+    "${package}.ModelBuilder"
+    "${package}.ModelConstructionException"
     "${package}.ScalarValue"
     "${package}.SimulationProgressMonitor"
     "${package}.SlaveID"
