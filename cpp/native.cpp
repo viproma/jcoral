@@ -447,11 +447,15 @@ namespace
     {
         jobject jSlaveType = env->NewObject(slaveTypeClass, defaultCtor);
         CheckJNIReturn(jSlaveType);
-        SetField(env, jSlaveType, "name", cSlaveType.name);
-        SetField(env, jSlaveType, "uuid", cSlaveType.uuid);
-        SetField(env, jSlaveType, "description", cSlaveType.description);
-        SetField(env, jSlaveType, "author", cSlaveType.author);
-        SetField(env, jSlaveType, "version", cSlaveType.version);
+        SetField(env, jSlaveType, "name", cSlaveType.description.Name());
+        SetField(env, jSlaveType, "uuid", cSlaveType.description.UUID());
+        SetField(env, jSlaveType, "description", cSlaveType.description.Description());
+        SetField(env, jSlaveType, "author", cSlaveType.description.Author());
+        SetField(env, jSlaveType, "version", cSlaveType.description.Version());
+
+        auto variableDescriptionRange = cSlaveType.description.Variables();
+        std::vector<dsb::model::VariableDescription> variableDescriptions{
+            begin(variableDescriptionRange), end(variableDescriptionRange)};
 
         const auto vdClass = env->FindClass("com/sfh/dsb/VariableDescription");
         CheckJNIReturn(vdClass);
@@ -464,7 +468,7 @@ namespace
         const auto variables = ToJArray<dsb::model::VariableDescription>(
             env,
             vdClass,
-            cSlaveType.variables,
+            variableDescriptions,
             [env, vdClass, vdCtor, &dtConv, &csConv, &vbConv]
                 (const dsb::model::VariableDescription& vd)
             {
