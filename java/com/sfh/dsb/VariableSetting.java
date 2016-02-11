@@ -35,22 +35,22 @@ public class VariableSetting
     }
 
     /** Returns the ID of the variable which is to be initialised/connected. */
-    int getVariableID() { return variableID_; }
+    public int getVariableID() { return variableID_; }
 
     /** Returns whether the variable is to be given a value. */
-    boolean hasValue() { return value_ != null; }
+    public boolean hasValue() { return value_ != null; }
 
     /** Returns the variable value. */
-    ScalarValue getValue() { return value_; }
+    public ScalarValue getValue() { return value_; }
 
     /** Returns whether the variable is to be connected. */
-    boolean hasConnectedOutput() { return connectedOutput_ != null; }
+    public boolean hasConnectedOutput() { return connectedOutput_ != null; }
 
     /**
      * Returns the output variable to which the input variable should be
      * connected.
      */
-    Variable getConnectedOutput()
+    public Variable getConnectedOutput()
     {
         return connectedOutput_;
     }
