@@ -1,31 +1,34 @@
 cmake_minimum_required(VERSION 3.0.0)
 
-set(package "com.sfh.dsb")
+set(package "com.sfh")
 
 # Java classes with native code
 set(nativeClasses
-    "${package}.DomainController"
-    "${package}.DomainLocator"
-    "${package}.ExecutionController"
-    "${package}.ExecutionLocator"
-    "${package}.Future"
-    "${package}.SlaveLocator"
+    "${package}.dsb.DomainController"
+    "${package}.dsb.DomainLocator"
+    "${package}.dsb.ExecutionController"
+    "${package}.dsb.ExecutionLocator"
+    "${package}.dsb.Future"
+    "${package}.dsb.SlaveLocator"
 )
 
 # Java classes without native code
 set(normalClasses
-    "${package}.Causality"
-    "${package}.DataType"
-    "${package}.EntityNotFoundException"
-    "${package}.ModelBuilder"
-    "${package}.ModelConstructionException"
-    "${package}.ScalarValue"
-    "${package}.SimulationProgressMonitor"
-    "${package}.SlaveID"
-    "${package}.Variability"
-    "${package}.VariableDescription"
-    "${package}.Variable"
-    "${package}.VariableSetting"
+    "${package}.dsb.Causality"
+    "${package}.dsb.DataType"
+    "${package}.dsb.EntityNotFoundException"
+    "${package}.dsb.ModelBuilder"
+    "${package}.dsb.ModelConstructionException"
+    "${package}.dsb.ScalarValue"
+    "${package}.dsb.SimulationProgressMonitor"
+    "${package}.dsb.SlaveID"
+    "${package}.dsb.SlaveProviderProcessBuilder"
+    "${package}.dsb.Variability"
+    "${package}.dsb.VariableDescription"
+    "${package}.dsb.Variable"
+    "${package}.dsb.VariableSetting"
+    "${package}.util.ProcessCapture"
+    "${package}.util.ProcessOutput"
 )
 
 # ==============================================================================
@@ -98,7 +101,7 @@ add_custom_command(
     COMMAND "${Java_JAVADOC_EXECUTABLE}" "-d" "${docDir}" "-public"
         "-sourcepath" "${CMAKE_CURRENT_SOURCE_DIR}"
         "-link" "http://docs.oracle.com/javase/7/docs/api"
-        "${package}"
+        "${package}.dsb" "${package}.util"
     DEPENDS ${javaFiles}
     VERBATIM
 )

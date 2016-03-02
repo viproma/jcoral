@@ -1,2 +1,2 @@
 Tested to work with the following DSB revision:
-884f8dab409c09e1bfc8bc24d90f190e183fab2f (2016-02-10), Tag: v0.4.0
+6a0e4c52ddee6b9a40b2e49d97747929caf595c8 (2016-03-02)

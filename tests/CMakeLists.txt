@@ -5,6 +5,7 @@ set(tests
     "ExecutionControllerTest"
     "ListSlaveTypeInfo"
     "ModelBuilderTest"
+    "ProcessCaptureTest"
 )
 
 if (WIN32)
