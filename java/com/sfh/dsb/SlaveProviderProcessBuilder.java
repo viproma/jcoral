@@ -233,6 +233,7 @@ public class SlaveProviderProcessBuilder
      *  <li>The slave provider's working directory, and/or
      *  <li>The slave provider's output directory (if set), and
      *  <li>The name of the execution and the slave.
+     * </ul>
      * <p>
      * The last two pieces of information must be supplied.  This requires that
      * they were set explicitly when the execution was started and the slave was
