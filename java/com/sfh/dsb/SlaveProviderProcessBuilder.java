@@ -15,6 +15,13 @@ import java.util.regex.Pattern;
  * To use this class, simply create an instance, set the desired options,
  * and call {@link #start start()} to start the process.  The same object
  * may be used multiple times to start several processes.
+ * <pre><code>    SlaveProviderProcessBuilder spb = new SlaveProviderProcessBuilder(
+ *        new File("C:\\path\\to\\slave_provider.exe"),
+ *        new File("C:\\path\\to\\working\\directory"));
+ *    spb.addFMUPath(new File("C:\\path\\to\\mymodel.fmu"));
+ *    spb.addFMUPath(new File("C:\\path\\to\\my\\fmu\\directory"));
+ *    spb.setOutputDirectory(new File("C:\\path\\to\\outputfile\\directory"));
+ *    Process sp = spb.start();</code></pre>
  */
 public class SlaveProviderProcessBuilder
 {
