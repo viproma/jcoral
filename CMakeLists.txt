@@ -14,6 +14,10 @@ endif ()
 add_definitions("-DBOOST_ALL_NO_LIB") # Disables Boost's auto-linking feature.
 add_definitions("-DBOOST_SYSTEM_NO_DEPRECATED") # Disable some deprecated stuff.
 
+option (FMILIB_USE_SHARED_LIB
+    "Whether to link against the shared library version of FMI Library"
+    ON)
+
 find_package(Java 1.7 REQUIRED)
 find_package(JNI REQUIRED)
 find_package(dsb REQUIRED) # also finds Boost
