@@ -1,5 +1,11 @@
 package com.sfh.dsb;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+
 import com.sfh.dsb.DomainLocator;
 import com.sfh.dsb.ExecutionLocator;
 import com.sfh.dsb.Future;
@@ -295,33 +301,130 @@ public final class ExecutionController implements AutoCloseable
         simTime_ += lastStepSize_;
     }
 
+    /** Returns the current simulation time. */
+    public double currentTime()
+    {
+        return simTime_;
+    }
+
     /**
      * Convenience method for performing multiple time steps in sequence.
      * <p>
      * This function will advance the simulation time with the amount specified
      * by <code>duration</code> by repeatedly calling {@link #step} followed by
      * {@link #acceptStep}, using time steps of length <code>stepSize</code>.
-     * If <code>duration</code> is not an exact multiple of
-     * <code>stepSize</code>, the last time step will be shorter. If any of
-     * the steps fail for any reason, an exception will be thrown.
+     * <p>
+     * The <code>scenario</code> parameter may be used to specify actions that
+     * take place at certain time points.  The events in the queue should be
+     * correctly ordered in time.  Leading elements whose event time is less
+     * than the current simulation time will be skipped.  Events will be
+     * removed from the queue as they occur (or are skipped).
+     * <p>
+     * If the time between events, or the time between the last event and the
+     * time at which the simulation is set to stop, is not an exact multiple of
+     * <code>stepSize</code>, the last time step before an event or before
+     * stopping will be shorter. If any of the steps fail for any reason, an
+     * exception will be thrown.
      * <p>
      * The progress of the simulation may be monitored, and optionally aborted,
-     * by supplying a {@link SimulationProgressMonitor} object.
+     * by a {@link SimulationProgressMonitor} object.
      *
      * @param duration
-     *      How much the simulation time should be advanced.
+     *      How much the simulation time should be advanced.  Must be positive.
      * @param stepSize
-     *      The time step size.
+     *      The time step size.  Must be positive.
+     * @param scenario
+     *      A queue of time-ordered events, or <code>null</code> if there are
+     *      none.  The queue may not contain <code>null</code> elements.
      * @param stepTimeout_ms
      *      A value which will be used for the <code>timeout_ms</code> argument
-     *      to <code>step()</code>.
-     * @param acceptStepTimeout_ms
+     *      to <code>step()</code>.  Must be positive.
+     * @param otherTimeout_ms
      *      A value which will be used for the <code>timeout_ms</code> argument
-     *      to <code>acceptStep()</code>.
+     *      to commands other than <code>step()</code> (e.g.
+     *      <code>acceptStep()</code>).
      * @param progressMonitor
      *      An object for monitoring the simulation. May be null if this
      *      functionality is not needed.
      */
+    public void simulate(
+        double duration,
+        double stepSize,
+        Queue<ScenarioEvent> scenario,
+        int stepTimeout_ms,
+        int otherTimeout_ms,
+        SimulationProgressMonitor progressMonitor)
+        throws Exception
+    {
+        if (duration <= 0.0) {
+            throw new IllegalArgumentException("Nonpositive duration");
+        }
+        if (stepSize <= 0.0) {
+            throw new IllegalArgumentException("Nonpositive step size");
+        }
+        if (stepTimeout_ms <= 0 || otherTimeout_ms <= 0) {
+            throw new IllegalArgumentException("Nonpositive timeout");
+        }
+
+        if (progressMonitor != null && !progressMonitor.progress(simTime_)) {
+            return;
+        }
+
+        if (scenario != null) {
+            while (!scenario.isEmpty() &&
+                    scenario.element().getTimePoint() < currentTime()) {
+                scenario.remove();
+            }
+        }
+
+        final double endTime = currentTime() + duration;
+        final double epsilon = stepSize * 1e-6;
+        while (true) {
+            final double nextStop = (scenario == null || scenario.isEmpty())
+                ? endTime
+                : Math.min(scenario.element().getTimePoint(), endTime);
+            simulateUntil(
+                nextStop, stepSize,
+                stepTimeout_ms, otherTimeout_ms,
+                progressMonitor);
+            if (nextStop >= endTime) break;
+
+            assert(scenario != null);
+            beginConfig();
+            Map<SlaveID, List<VariableSetting>> settings =
+                new HashMap<SlaveID, List<VariableSetting>>();
+
+            do {
+                ScenarioEvent event = scenario.element();
+                List<VariableSetting> slaveSettings =
+                    settings.get(event.getSlaveID());
+                if (slaveSettings == null) {
+                    slaveSettings = new ArrayList<VariableSetting>();
+                    settings.put(event.getSlaveID(), slaveSettings);
+                }
+                slaveSettings.add(event.getVariableSetting());
+                scenario.remove();
+            } while (!scenario.isEmpty() &&
+                     scenario.element().getTimePoint() < nextStop + epsilon);
+
+            List<Future.Void> setVariablesStatuses = new ArrayList<Future.Void>();
+            for (Map.Entry<SlaveID, List<VariableSetting>> entry : settings.entrySet()) {
+                setVariablesStatuses.add(setVariables(
+                    entry.getKey(),
+                    entry.getValue(),
+                    otherTimeout_ms));
+            }
+            for (Future.Void status : setVariablesStatuses) status.get();
+            endConfig();
+        }
+    }
+
+    /**
+     * Forwards to {@link #simulate}, with <code>scenario = null</code>.
+     *
+     * @deprecated  Replaced by {@link #simulate}.
+     */
+    @Deprecated
     public void simulate(
         double duration,
         double stepSize,
@@ -330,31 +433,10 @@ public final class ExecutionController implements AutoCloseable
         SimulationProgressMonitor progressMonitor)
         throws Exception
     {
-        if (duration <= 0.0) {
-            throw new IllegalArgumentException("Nonpositive duration");
-        }
-        if (duration > 0.0 && stepSize <= 0.0) {
-            throw new IllegalArgumentException("Nonpositive step size");
-        }
-        if (stepTimeout_ms <= 0.0 || acceptStepTimeout_ms <= 0) {
-            throw new IllegalArgumentException("Nonpositive timeout");
-        }
-
-        if (progressMonitor != null && !progressMonitor.progress(simTime_, 0.0)) {
-            return;
-        }
-        double t = 0.0;
-        while (t+stepSize < duration) {
-            forceStep(stepSize, stepTimeout_ms, acceptStepTimeout_ms);
-            t += stepSize;
-            if (progressMonitor != null && !progressMonitor.progress(simTime_, t/duration)) {
-                return;
-            }
-        }
-        forceStep(duration-t, stepTimeout_ms, acceptStepTimeout_ms);
-        if (progressMonitor != null && !progressMonitor.progress(simTime_, 1.0)) {
-            return;
-        }
+        simulate(
+            duration, stepSize, null,
+            stepTimeout_ms, acceptStepTimeout_ms,
+            progressMonitor);
     }
 
     /** Forwards to {@link #simulate}, with <code>progressMonitor = null</code>. */
@@ -367,6 +449,7 @@ public final class ExecutionController implements AutoCloseable
     {
         simulate(duration, stepSize, stepTimeout_ms, acceptStepTimeout_ms, null);
     }
+
 
     // =========================================================================
 
@@ -382,6 +465,37 @@ public final class ExecutionController implements AutoCloseable
         }
     }
 
+    // Advances the simulation with the given duration and returns false iff
+    // the simulation was aborted by the progress monitor.
+    private boolean simulateUntil(
+        double targetTime,
+        double stepSize,
+        int stepTimeout_ms,
+        int acceptStepTimeout_ms,
+        SimulationProgressMonitor progressMonitor)
+        throws Exception
+    {
+        if (targetTime == currentTime()) return true;
+        assert(targetTime > currentTime());
+        assert(stepSize > 0.0);
+        assert(stepTimeout_ms > 0);
+        assert(acceptStepTimeout_ms > 0);
+
+        while (currentTime() + stepSize < targetTime) {
+            forceStep(stepSize, stepTimeout_ms, acceptStepTimeout_ms);
+            if (progressMonitor != null && !progressMonitor.progress(currentTime())) {
+                return false;
+            }
+        }
+        forceStep(targetTime - currentTime(), stepTimeout_ms, acceptStepTimeout_ms);
+        if (progressMonitor != null && !progressMonitor.progress(currentTime())) {
+            return false;
+        }
+        return true;
+    }
+
+    // Combines step and acceptStep into one operation and throws an exception
+    // if a step fails.
     private void forceStep(
         double stepSize,
         int stepTimeout_ms,

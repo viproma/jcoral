@@ -14,11 +14,8 @@ public interface SimulationProgressMonitor
      *
      * @param t
      *      The current logical time
-     * @param p
-     *      The progress in the current <code>simulate()</code> call, expressed
-     *      as a number from 0 to 1.
      *
      * @return Whether the simulation should continue.
      */
-    public boolean progress(double t, double p) throws Exception;
+    public boolean progress(double t) throws Exception;
 }

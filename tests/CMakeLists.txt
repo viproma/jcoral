@@ -6,6 +6,7 @@ set(tests
     "ListSlaveTypeInfo"
     "ModelBuilderTest"
     "ProcessCaptureTest"
+    "SineScenarioTest"
 )
 
 if (WIN32)

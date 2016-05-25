@@ -11,12 +11,13 @@ import com.sfh.dsb.DomainController;
 import com.sfh.dsb.EntityNotFoundException;
 import com.sfh.dsb.ExecutionController;
 import com.sfh.dsb.ModelConstructionException;
+import com.sfh.dsb.ModelSlaveMap;
 import com.sfh.dsb.VariableDescription;
 import com.sfh.dsb.VariableSetting;
 
 
 /**
- * A convenience class for "off-line" simulation setup.
+ * A convenience class for "offline" simulation setup.
  * <p>
  * This class offers a convenient pre-stage to setting up an online simulation
  * using {@link ExecutionController}.  <code>ModelBuilder</code> allows one to
@@ -459,8 +460,11 @@ public class ModelBuilder
      * @param commandTimeout_ms
      *      The timeout that will be used for all
      *      <code>ExecutionController</code> method calls.
+     *
+     * @return
+     *      An object which contains mappings from slave names to slave IDs.
      */
-    public void apply(
+    public ModelSlaveMap apply(
         ExecutionController execution,
         int instantiationTimeout_ms,
         int commandTimeout_ms)
@@ -577,6 +581,7 @@ public class ModelBuilder
 
             // Leave configuration mode
             execution.endConfig();
+            return new ModelSlaveMap(slaveIDs, slaves_);
         } finally {
             // Clean up all native resources
             if (slaveLocators != null) {
@@ -602,7 +607,7 @@ public class ModelBuilder
 
     // Our own reference to a DomainController.SlaveType, where we also cache
     // useful information for quick lookup.
-    private class ModelSlaveType
+    static class ModelSlaveType
     {
         ModelSlaveType(DomainController.SlaveType domainSlaveType)
         {

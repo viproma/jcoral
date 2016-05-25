@@ -115,13 +115,14 @@ public class ModelBuilderTest
         exe.simulate(
             endTime,
             stepSize,
+            null,
             stepTimeout_ms,
             commandTimeout_ms,
             new SimulationProgressMonitor() {
                 final int percentStep_ = 10;
                 int nextPercent_ = 0;
-                public boolean progress(double t, double p) {
-                    double percent = p * 100;
+                public boolean progress(double t) {
+                    double percent = 100.0 * t / endTime;
                     if (percent >= nextPercent_) {
                         System.out.println("t = " + t + " (" + nextPercent_ + "%)");
                         nextPercent_ += percentStep_;
