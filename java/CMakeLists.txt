@@ -45,7 +45,7 @@ endforeach()
 add_custom_command(
     OUTPUT ${classFiles}
     COMMAND "${CMAKE_COMMAND}" "-E" "make_directory" "classes"
-    COMMAND "${Java_JAVAC_EXECUTABLE}" "-d" "classes" ${javaFiles}
+    COMMAND "${Java_JAVAC_EXECUTABLE}" "-d" "classes" "-Xlint:all,-try" ${javaFiles}
     DEPENDS ${javaFiles}
     VERBATIM
 )

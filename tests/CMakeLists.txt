@@ -21,7 +21,7 @@ foreach(className ${tests})
     set(classFile "${className}.class")
     add_custom_command(
         OUTPUT "${classFile}"
-        COMMAND "${Java_JAVAC_EXECUTABLE}" "-d" "." "-classpath" "${genJarPath}" "${javaFile}"
+        COMMAND "${Java_JAVAC_EXECUTABLE}" "-d" "." "-classpath" "${genJarPath}" "-Xlint:all,-try" "${javaFile}"
         MAIN_DEPENDENCY "${javaFile}"
         DEPENDS jdsb
         VERBATIM
