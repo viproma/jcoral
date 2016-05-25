@@ -35,7 +35,7 @@ import com.sfh.dsb.ScenarioEvent;
  *          when running the simulation.
  *      <li>Repeat steps 3&ndash;6 with the same {@code ModelBuilder} and
  *          {@code ScenarioBuilder} if desirable.
- * </ul><p>
+ * </ol>
  */
 public class ScenarioBuilder
 {
