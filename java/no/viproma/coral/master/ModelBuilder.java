@@ -89,14 +89,12 @@ public class ModelBuilder
      *      be used to instantiate slaves.
      * @param commTimeout_ms
      *      The communications timeout used for requests to slave providers.
+     *      The value -1 means no timeout.
      */
     public ModelBuilder(ProviderCluster cluster, int commTimeout_ms)
     {
         if (cluster == null) {
             throw new IllegalArgumentException("cluster is null");
-        }
-        if (commTimeout_ms < 0) {
-            throw new IllegalArgumentException("commTimeout_ms is negative");
         }
         cluster_               = cluster;
         clusterCommTimeout_ms_ = commTimeout_ms;

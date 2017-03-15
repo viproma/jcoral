@@ -182,7 +182,6 @@ public final class Execution implements AutoCloseable
     {
         CheckSelf();
         if (stepSize < 0.0) throw new IllegalArgumentException("Negative step size");
-        if (timeout_ms <= 0) throw new IllegalArgumentException("Nonpositive timeout");
         boolean ok = stepNative(nativePtr_, stepSize, timeout_ms);
         lastStepSize_ = stepSize;
         return ok ? StepResult.COMPLETE : StepResult.FAILED;
@@ -209,7 +208,6 @@ public final class Execution implements AutoCloseable
     public void acceptStep(int timeout_ms) throws Exception
     {
         CheckSelf();
-        if (timeout_ms <= 0) throw new IllegalArgumentException("Nonpositive timeout");
         acceptStepNative(nativePtr_, timeout_ms);
         simTime_ += lastStepSize_;
     }
@@ -275,9 +273,6 @@ public final class Execution implements AutoCloseable
         }
         if (stepSize <= 0.0) {
             throw new IllegalArgumentException("Nonpositive step size");
-        }
-        if (stepTimeout_ms <= 0 || otherTimeout_ms <= 0) {
-            throw new IllegalArgumentException("Nonpositive timeout");
         }
 
         if (progressMonitor != null && !progressMonitor.progress(simTime_)) {
@@ -367,8 +362,6 @@ public final class Execution implements AutoCloseable
         if (targetTime == currentTime()) return true;
         assert(targetTime > currentTime());
         assert(stepSize > 0.0);
-        assert(stepTimeout_ms > 0);
-        assert(acceptStepTimeout_ms > 0);
 
         while (currentTime() + stepSize < targetTime) {
             forceStep(stepSize, stepTimeout_ms, acceptStepTimeout_ms);
