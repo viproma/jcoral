@@ -1,15 +1,16 @@
+import java.net.InetAddress;
 import java.util.LinkedList;
 import java.util.Queue;
 
-import no.viproma.coral.DomainController;
-import no.viproma.coral.DomainLocator;
-import no.viproma.coral.master.ExecutionController;
+import no.viproma.coral.master.Execution;
+import no.viproma.coral.master.ExecutionOptions;
 import no.viproma.coral.master.ModelBuilder;
 import no.viproma.coral.master.ModelSlaveMap;
-import no.viproma.coral.model.ScalarValue;
+import no.viproma.coral.master.ProviderCluster;
 import no.viproma.coral.master.ScenarioBuilder;
 import no.viproma.coral.master.ScenarioEvent;
 import no.viproma.coral.master.SimulationProgressMonitor;
+import no.viproma.coral.model.ScalarValue;
 
 
 public class SineScenarioTest
@@ -27,15 +28,15 @@ public class SineScenarioTest
 
         // Connect to domain
         try (
-        DomainLocator domLoc = new DomainLocator("tcp://localhost");
-        DomainController dom = new DomainController(domLoc)
+        ProviderCluster cluster =
+            new ProviderCluster(InetAddress.getByName("localhost"));
         ) {
         Thread.sleep(2000); // wait for the info to trickle in
 
         // Build the model
-        ModelBuilder model = new ModelBuilder(dom);
-        model.addSlave("sine1", "sfh.larky.sine");
-        model.addSlave("sine2", "sfh.larky.sine");
+        ModelBuilder model = new ModelBuilder(cluster, commandTimeout_ms);
+        model.addSlave("sine1", "no.viproma.demo.sine");
+        model.addSlave("sine2", "no.viproma.demo.sine");
         model.setInitialVariableValue("sine1", "b", new ScalarValue(2.0));
         model.setInitialVariableValue("sine1", "w", new ScalarValue(2*Math.PI));
         model.setInitialVariableValue("sine2", "b", new ScalarValue(4.0));
@@ -46,11 +47,13 @@ public class SineScenarioTest
         scenarioBuilder.addEvent(6.0, "sine2", "w", new ScalarValue(2*Math.PI));
         scenarioBuilder.addEvent(3.0, "sine1", "b", new ScalarValue(3.0));
 
-        // Spawn a new execution on this domain and apply the model
-        try (ExecutionController exe = ExecutionController.spawnExecution(domLoc)) {
-        exe.setSimulationTime(0.0, endTime);
+        // Create a new execution and apply the model
+        ExecutionOptions exeOptions = new ExecutionOptions();
+        exeOptions.setSimTime(0.0, endTime);
+        try (Execution exe = new Execution("ModelBuilderTest", exeOptions)) {
         ModelSlaveMap slaveMap =
             model.apply(exe, slaveInstantiationTimeout_ms, commandTimeout_ms);
+
 
         // Generate a scenario for this execution
         Queue<ScenarioEvent> scenario = scenarioBuilder.build(slaveMap);
