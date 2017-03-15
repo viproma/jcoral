@@ -44,6 +44,24 @@ elseif (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3 /WX /wd4996")
 endif()
 
+set(targetInstallDestinations
+    ARCHIVE DESTINATION "lib"
+    LIBRARY DESTINATION "lib"
+    RUNTIME DESTINATION "bin"
+)
+if(WIN32)
+    set(jarInstallDir "java")
+    set(docInstallDir "doc")
+else()
+    set(jarInstallDir "share/java")
+    set(docInstallDir "share/doc/${CMAKE_PROJECT_NAME}")
+endif()
+
+install(
+    FILES "LICENCE.txt" "README.md" "coral_version.txt"
+    DESTINATION ${docInstallDir}
+)
+
 add_subdirectory(cpp)
 add_subdirectory(java)
 add_subdirectory(tests)

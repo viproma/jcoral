@@ -15,3 +15,4 @@ target_link_libraries(jcoral
     coral
     ${Boost_LIBRARIES}
 )
+install(TARGETS jcoral ${targetInstallDestinations})

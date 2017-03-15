@@ -66,6 +66,10 @@ set_target_properties(jar PROPERTIES
     ARCHIVE_OUTPUT_NAME "${jarFilename}"
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )
+install(
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/${jarFilename}"
+    DESTINATION "${jarInstallDir}"
+)
 
 # ==============================================================================
 # Target: headers
@@ -109,3 +113,4 @@ add_custom_command(
     VERBATIM
 )
 add_custom_target(doc ALL DEPENDS "${docDir}")
+install(DIRECTORY "${docDir}/" DESTINATION "${docInstallDir}/api")
