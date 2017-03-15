@@ -52,9 +52,11 @@ set(targetInstallDestinations
 if(WIN32)
     set(jarInstallDir "java")
     set(docInstallDir "doc")
+    set(exampleInstallDir "examples")
 else()
     set(jarInstallDir "share/java")
     set(docInstallDir "share/doc/${CMAKE_PROJECT_NAME}")
+    set(exampleInstallDir "share/${CMAKE_PROJECT_NAME}/examples")
 endif()
 
 install(

@@ -15,6 +15,7 @@ else()
 endif()
 
 set(genJarPath "$<TARGET_PROPERTY:jar,ARCHIVE_OUTPUT_DIRECTORY>/$<TARGET_PROPERTY:jar,ARCHIVE_OUTPUT_NAME>")
+set(testSources)
 foreach(className ${tests})
     set(testName "test_${className}")
     set(javaFile  "${CMAKE_CURRENT_SOURCE_DIR}/${className}.java")
@@ -35,4 +36,7 @@ foreach(className ${tests})
             "-enableassertions"
             "${className}"
     )
+    list(APPEND testSources "${javaFile}")
 endforeach()
+
+install(FILES ${testSources} DESTINATION "${exampleInstallDir}")
