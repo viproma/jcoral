@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(jdsb)
+project(jcoral)
 enable_testing()
 
-# Boost settings.  find_package(dsb) below also sets up Boost, so we need to
+# Boost settings.  find_package(coral) below also sets up Boost, so we need to
 # configure them now.
 set (Boost_USE_MULTITHREADED ON)
 if (WIN32)
@@ -20,7 +20,8 @@ option (FMILIB_USE_SHARED_LIB
 
 find_package(Java 1.7 REQUIRED)
 find_package(JNI REQUIRED)
-find_package(dsb REQUIRED) # also finds Boost
+find_package(coral REQUIRED)
+find_package(Boost REQUIRED)
 
 set(jniHeaderDir "${CMAKE_BINARY_DIR}/jni")
 

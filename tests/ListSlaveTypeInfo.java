@@ -1,18 +1,22 @@
-import com.sfh.dsb.DomainController;
-import com.sfh.dsb.DomainLocator;
-import com.sfh.dsb.VariableDescription;
+import java.net.InetAddress;
+
+import no.viproma.coral.master.ProviderCluster;
+import no.viproma.coral.model.VariableDescription;
 
 
 public class ListSlaveTypeInfo
 {
     public static void main(String[] args) throws Exception
     {
+        final int commandTimeout_ms = 1000;
+
         try (
-            DomainLocator domLoc = new DomainLocator("tcp://localhost");
-            DomainController dom = new DomainController(domLoc);
+            ProviderCluster cluster =
+                new ProviderCluster(InetAddress.getByName("localhost"));
         ) {
             Thread.sleep(2000);
-            for (DomainController.SlaveType st : dom.getSlaveTypes()) {
+            for (ProviderCluster.SlaveType st :
+                    cluster.getSlaveTypes(commandTimeout_ms)) {
                 System.out.println(st.getName());
                 System.out.println("  UUID     : " + st.getUUID());
                 System.out.println("  Descr.   : " + st.getDescription());

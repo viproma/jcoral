@@ -1,35 +1,35 @@
 cmake_minimum_required(VERSION 3.0.0)
 
-set(package "com.sfh")
+set(package "no.viproma")
 
 # Java classes with native code
 set(nativeClasses
-    "${package}.dsb.DomainController"
-    "${package}.dsb.DomainLocator"
-    "${package}.dsb.ExecutionController"
-    "${package}.dsb.ExecutionLocator"
-    "${package}.dsb.Future"
-    "${package}.dsb.SlaveLocator"
+    "${package}.coral.master.Execution"
+    "${package}.coral.master.ProviderCluster"
 )
 
 # Java classes without native code
 set(normalClasses
-    "${package}.dsb.Causality"
-    "${package}.dsb.DataType"
-    "${package}.dsb.EntityNotFoundException"
-    "${package}.dsb.ModelBuilder"
-    "${package}.dsb.ModelConstructionException"
-    "${package}.dsb.ModelSlaveMap"
-    "${package}.dsb.ScalarValue"
-    "${package}.dsb.ScenarioBuilder"
-    "${package}.dsb.ScenarioEvent"
-    "${package}.dsb.SimulationProgressMonitor"
-    "${package}.dsb.SlaveID"
-    "${package}.dsb.SlaveProviderProcessBuilder"
-    "${package}.dsb.Variability"
-    "${package}.dsb.VariableDescription"
-    "${package}.dsb.Variable"
-    "${package}.dsb.VariableSetting"
+    "${package}.coral.master.AddedSlave"
+    "${package}.coral.master.EntityNotFoundException"
+    "${package}.coral.master.ExecutionOptions"
+    "${package}.coral.master.ModelBuilder"
+    "${package}.coral.master.ModelConstructionException"
+    "${package}.coral.master.ModelSlaveMap"
+    "${package}.coral.master.ScenarioBuilder"
+    "${package}.coral.master.ScenarioEvent"
+    "${package}.coral.master.SimulationProgressMonitor"
+    "${package}.coral.master.SlaveConfig"
+    "${package}.coral.model.Causality"
+    "${package}.coral.model.DataType"
+    "${package}.coral.model.ScalarValue"
+    "${package}.coral.model.SlaveID"
+    "${package}.coral.model.Variability"
+    "${package}.coral.model.VariableDescription"
+    "${package}.coral.model.Variable"
+    "${package}.coral.model.VariableSetting"
+    "${package}.coral.net.SlaveLocator"
+    "${package}.coral.provider.SlaveProviderProcessBuilder"
     "${package}.util.ProcessCapture"
     "${package}.util.ProcessOutput"
 )
@@ -53,7 +53,7 @@ add_custom_command(
     VERBATIM
 )
 
-set(jarFilename "jdsb.jar")
+set(jarFilename "jcoral.jar")
 add_custom_command(
     OUTPUT "${jarFilename}"
     COMMAND "${Java_JAR_EXECUTABLE}" "cf" "${CMAKE_CURRENT_BINARY_DIR}/${jarFilename}" "*"
@@ -104,7 +104,7 @@ add_custom_command(
     COMMAND "${Java_JAVADOC_EXECUTABLE}" "-d" "${docDir}" "-public"
         "-sourcepath" "${CMAKE_CURRENT_SOURCE_DIR}"
         "-link" "http://docs.oracle.com/javase/7/docs/api"
-        "${package}.dsb" "${package}.util"
+        "-subpackages" "${package}"
     DEPENDS ${javaFiles}
     VERBATIM
 )

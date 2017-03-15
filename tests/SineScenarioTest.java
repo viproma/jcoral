@@ -1,15 +1,15 @@
 import java.util.LinkedList;
 import java.util.Queue;
 
-import com.sfh.dsb.DomainController;
-import com.sfh.dsb.DomainLocator;
-import com.sfh.dsb.ExecutionController;
-import com.sfh.dsb.ModelBuilder;
-import com.sfh.dsb.ModelSlaveMap;
-import com.sfh.dsb.ScalarValue;
-import com.sfh.dsb.ScenarioBuilder;
-import com.sfh.dsb.ScenarioEvent;
-import com.sfh.dsb.SimulationProgressMonitor;
+import no.viproma.coral.DomainController;
+import no.viproma.coral.DomainLocator;
+import no.viproma.coral.master.ExecutionController;
+import no.viproma.coral.master.ModelBuilder;
+import no.viproma.coral.master.ModelSlaveMap;
+import no.viproma.coral.model.ScalarValue;
+import no.viproma.coral.master.ScenarioBuilder;
+import no.viproma.coral.master.ScenarioEvent;
+import no.viproma.coral.master.SimulationProgressMonitor;
 
 
 public class SineScenarioTest
@@ -48,6 +48,7 @@ public class SineScenarioTest
 
         // Spawn a new execution on this domain and apply the model
         try (ExecutionController exe = ExecutionController.spawnExecution(domLoc)) {
+        exe.setSimulationTime(0.0, endTime);
         ModelSlaveMap slaveMap =
             model.apply(exe, slaveInstantiationTimeout_ms, commandTimeout_ms);
 

@@ -1,15 +1,16 @@
+import java.net.InetAddress;
 import java.util.HashSet;
 import java.util.List;
 import java.util.TreeSet;
 
-import com.sfh.dsb.DomainController;
-import com.sfh.dsb.DomainLocator;
-import com.sfh.dsb.ExecutionController;
-import com.sfh.dsb.EntityNotFoundException;
-import com.sfh.dsb.ModelBuilder;
-import com.sfh.dsb.ModelConstructionException;
-import com.sfh.dsb.ScalarValue;
-import com.sfh.dsb.SimulationProgressMonitor;
+import no.viproma.coral.master.Execution;
+import no.viproma.coral.master.ExecutionOptions;
+import no.viproma.coral.master.EntityNotFoundException;
+import no.viproma.coral.master.ModelBuilder;
+import no.viproma.coral.master.ModelConstructionException;
+import no.viproma.coral.master.ProviderCluster;
+import no.viproma.coral.model.ScalarValue;
+import no.viproma.coral.master.SimulationProgressMonitor;
 
 
 public class ModelBuilderTest
@@ -25,17 +26,17 @@ public class ModelBuilderTest
         final double stepSize = 0.01;
         final double endTime = 1.0;
 
-        // Connect to domain
+        // Connect to slave providers
         try (
-        DomainLocator domLoc = new DomainLocator("tcp://localhost");
-        DomainController dom = new DomainController(domLoc)
+        ProviderCluster cluster =
+            new ProviderCluster(InetAddress.getByName("localhost"));
         ) {
-        Thread.sleep(2000); // wait for the info to trickle in
+        Thread.sleep(2000); // Allow time to discover providers
 
         // Build the model
-        ModelBuilder model = new ModelBuilder(dom);
-        model.addSlave("sine", "sfh.larky.sine");
-        model.addSlave("id",   "sfh.larky.identity");
+        ModelBuilder model = new ModelBuilder(cluster, commandTimeout_ms);
+        model.addSlave("sine", "no.viproma.demo.sine");
+        model.addSlave("id",   "no.viproma.demo.identity");
         model.setInitialVariableValue("sine", "a", new ScalarValue(2.0));
         model.setInitialVariableValue("sine", "w", new ScalarValue(2*Math.PI));
         model.setInitialVariableValue("id", "integerIn", new ScalarValue(123));
@@ -44,11 +45,11 @@ public class ModelBuilderTest
         model.connectVariables("sine", "y", "id", "realIn");
 
         // Test that the methods above handle errors properly
-        try { model.addSlave("foo:)", "sfh.larky.sine"); assert(false); } catch (IllegalArgumentException e) { }
-        try { model.addSlave("_foo", "sfh.larky.sine"); assert(false); } catch (IllegalArgumentException e) { }
-        try { model.addSlave("3foo", "sfh.larky.sine"); assert(false); } catch (IllegalArgumentException e) { }
+        try { model.addSlave("foo:)", "no.viproma.demo.sine"); assert(false); } catch (IllegalArgumentException e) { }
+        try { model.addSlave("_foo", "no.viproma.demo.sine"); assert(false); } catch (IllegalArgumentException e) { }
+        try { model.addSlave("3foo", "no.viproma.demo.sine"); assert(false); } catch (IllegalArgumentException e) { }
         try { model.addSlave("foo", "someUnknownType"); assert(false); } catch (EntityNotFoundException e) { }
-        try { model.addSlave("sine", "sfh.larky.sine"); assert(false); } catch (ModelConstructionException e) { }
+        try { model.addSlave("sine", "no.viproma.demo.sine"); assert(false); } catch (ModelConstructionException e) { }
 
         try { model.setInitialVariableValue("foo", "a", new ScalarValue(2.0)); assert(false); } catch (EntityNotFoundException e) { }
         try { model.setInitialVariableValue("id", "foo", new ScalarValue(2.0)); assert(false); } catch (EntityNotFoundException e) { }
@@ -71,8 +72,8 @@ public class ModelBuilderTest
         assert (slaveNames.first().equals("id"));
         assert (slaveNames.last().equals("sine"));
 
-        assert (model.getSlaveTypeOf("id").getName().equals("sfh.larky.identity"));
-        assert (model.getSlaveTypeOf("sine").getName().equals("sfh.larky.sine"));
+        assert (model.getSlaveTypeOf("id").getName().equals("no.viproma.demo.identity"));
+        assert (model.getSlaveTypeOf("sine").getName().equals("no.viproma.demo.sine"));
         try { model.getSlaveTypeOf("foo"); assert(false); } catch (EntityNotFoundException e) { }
 
         assert (model.getInitialVariableValue("sine", "a").getRealValue() == 2.0);
@@ -107,8 +108,10 @@ public class ModelBuilderTest
         assert(unconnected.contains("id.stringIn"));
         assert(unconnected.contains("sine.x"));
 
-        // Spawn a new execution on this domain and apply the model
-        try (ExecutionController exe = ExecutionController.spawnExecution(domLoc)) {
+        // Create a new execution and apply the model
+        ExecutionOptions exeOptions = new ExecutionOptions();
+        exeOptions.setSimTime(0.0, endTime);
+        try (Execution exe = new Execution("ModelBuilderTest", exeOptions)) {
         model.apply(exe, slaveInstantiationTimeout_ms, commandTimeout_ms);
 
         // Run simulation

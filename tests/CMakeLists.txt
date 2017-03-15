@@ -1,12 +1,11 @@
 cmake_minimum_required(VERSION 3.0.0)
 
 set(tests
-    "DomainLocatorErrorTest"
-    "ExecutionControllerTest"
+    "ExecutionTest"
     "ListSlaveTypeInfo"
     "ModelBuilderTest"
     "ProcessCaptureTest"
-    "SineScenarioTest"
+#    "SineScenarioTest"
 )
 
 if (WIN32)
@@ -24,7 +23,7 @@ foreach(className ${tests})
         OUTPUT "${classFile}"
         COMMAND "${Java_JAVAC_EXECUTABLE}" "-d" "." "-classpath" "${genJarPath}" "-Xlint:all,-try" "${javaFile}"
         MAIN_DEPENDENCY "${javaFile}"
-        DEPENDS jdsb
+        DEPENDS jcoral
         VERBATIM
     )
     add_custom_target(${testName} ALL DEPENDS ${classFile})
@@ -32,7 +31,7 @@ foreach(className ${tests})
         NAME "${testName}"
         COMMAND "${Java_JAVA_EXECUTABLE}"
             "-classpath" "${CMAKE_CURRENT_BINARY_DIR}${pathSep}${genJarPath}"
-            "-Djava.library.path=$<TARGET_FILE_DIR:jdsb>"
+            "-Djava.library.path=$<TARGET_FILE_DIR:jcoral>"
             "-enableassertions"
             "${className}"
     )

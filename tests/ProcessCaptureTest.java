@@ -1,5 +1,5 @@
-import com.sfh.util.ProcessCapture;
-import com.sfh.util.ProcessOutput;
+import no.viproma.util.ProcessCapture;
+import no.viproma.util.ProcessOutput;
 
 
 class ProcessCaptureTest
