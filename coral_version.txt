@@ -1,2 +1,2 @@
-Tested to work with the following DSB revision:
-772a3b5e2f2be61badad8a084404782702a75d67 (2016-03-02)
+Tested to work with the following Coral revision:
+d1ad8dbe79fa5a71920669c185b2418c7ed3caf6 v0.8.0-rc1 (2017-03-15)
