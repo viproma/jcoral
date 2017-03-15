@@ -1,7 +1,8 @@
-//#ifdef _MSC_VER
-//#	pragma warning(disable: 4800)
-//#endif
-
+/* Copyright 2014-2017, SINTEF Ocean.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
 #include <boost/numeric/conversion/cast.hpp>
 #include <boost/variant.hpp>
 
