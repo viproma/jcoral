@@ -20,6 +20,7 @@ import no.viproma.coral.master.ProviderCluster;
 import no.viproma.coral.model.Causality;
 import no.viproma.coral.model.ScalarValue;
 import no.viproma.coral.model.SlaveID;
+import no.viproma.coral.model.Variability;
 import no.viproma.coral.model.VariableDescription;
 import no.viproma.coral.model.VariableSetting;
 
@@ -312,7 +313,9 @@ public class ModelBuilder
         }
 
         // Simple variability check
-        if (oVarDesc.getVariability().compareTo(iVarDesc.getVariability()) > 0) {
+        if (iVarDesc.getVariability().compareTo(Variability.TUNABLE) < 0 &&
+            oVarDesc.getVariability().compareTo(iVarDesc.getVariability()) > 0)
+        {
             throw new ModelConstructionException(connectionErrMsg(
                 outputSlaveName, outputVariableName,
                 inputSlaveName, inputVariableName,
