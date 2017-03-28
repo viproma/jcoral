@@ -92,29 +92,42 @@ public class SlaveProviderProcessBuilder
     }
 
     /**
-     * Sets the domain address to which the slave provider will connect.
-     * <p>
-     * This should be a string either on the form <code>address:port</code>
-     * or simply <code>address</code>, where <code>address</code> is a
-     * hostname or IP address and the optional <code>port</code> is a
-     * port number.  Examples:
-     * <code>localhost</code>,
-     * <code>142.10.32.1</code>,
-     * <code>myhost:56789</code>, etc.
+     * Sets the network interface the slave provider will use for network
+     * communications.
      *
-     * @param domain
-     *      The domain address.
-     *      Use <code>null</code> to reset this option to its default value.
-     *
-     * @throws MalformedURLException
-     *      If the given address is malformed.
+     * @param networkInterface
+     *      A string which contains the IP address or hostname associated with
+     *      a local network interface, or the special value {@code "*"}
+     *      (asterisk) which means <em>all</em> available interfaces.
+     *      Use {@code null} to reset this option to its default value.
      */
-    public void setDomain(String domain) throws MalformedURLException
+    public void setNetworkInterface(String networkInterface)
     {
-        if (domain != null && !Pattern.matches("^(?:[a-zA-Z]+://)?\\w+(?:\\.\\w+)*(?::\\d+)/?$", domain)) {
-            throw new MalformedURLException("Invalid domain address: " + domain);
+        networkInterface_ = networkInterface;
+    }
+
+    /**
+     * Sets the UDP port number the slave provider will use to broadcast
+     * information about itself on the network.
+     * <p>
+     * The master must listen on the same port, which can be specified with
+     * the {@code discoveryEndpoint} parameter to the
+     * {@link no.viproma.coral.master.ProviderCluster#ProviderCluster ProviderCluster constructor}.
+     *
+     * @param port
+     *      A valid UDP port number, which must be in the range from 1
+     *      through 65535, or 0 to reset this option to its default value.
+     *
+     * @throws IllegalArgumentException
+     *      If {@code port} is outside the valid range.
+     */
+    public void setPort(int port) throws IllegalArgumentException
+    {
+        if (port < 0 || port > 65535) {
+            throw new IllegalArgumentException(
+                "Invalid UDP port number: " + String.valueOf(port));
         }
-        domain_ = domain;
+        port_ = port;
     }
 
     /**
@@ -162,27 +175,21 @@ public class SlaveProviderProcessBuilder
     /**
      * Sets the communications timeout (in seconds) for all slaves.
      * <p>
-     * {@link #resetTimeout} may be used to reset this option to its default
-     * value.
+     * This is the number of seconds a newly spawned slave will wait for
+     * an incoming connection from a master before giving up and shutting
+     * down.
      *
      * @param seconds
-     *      The timeout, which must be a positive number.
-     *
-     * @throws IllegalArgumentException
-     *      If <code>seconds</code> is nonpositive.
+     *      If positive, this is the timeout period in seconds.
+     *      Use the special value 0 to reset the option to its default value,
+     *      and -1 to disable the timeout altogether. Note that the latter
+     *      could make the slave wait forever for incoming connections, perhaps
+     *      using unnecessary system resources, and is therefore mainly
+     *      intended for debugging.
      */
     public void setTimeout_s(int seconds)
     {
-        if (seconds <= 0) {
-            throw new IllegalArgumentException("Nonpositive timeout");
-        }
-        timeout_s_ = seconds;
-    }
-
-    /** Resets the communications timeout to its default value. */
-    public void resetTimeout()
-    {
-        timeout_s_ = 0;
+        timeout_s_ = seconds < 0 ? -1 : seconds;
     }
 
     /**
@@ -213,9 +220,13 @@ public class SlaveProviderProcessBuilder
         for (File fmu : fmus_) {
             args.add(fmu.getPath());
         }
-        if (domain_ != null) {
-            args.add("--domain");
-            args.add(domain_);
+        if (networkInterface_ != null) {
+            args.add("--interface");
+            args.add(networkInterface_);
+        }
+        if (port_ != 0) {
+            args.add("--port");
+            args.add(String.valueOf(port_));
         }
         if (slaveExecutable_ != null) {
             args.add("--slave-exe");
@@ -225,9 +236,9 @@ public class SlaveProviderProcessBuilder
             args.add("--output-dir");
             args.add(outputDirectory_.getPath());
         }
-        if (timeout_s_ > 0) {
+        if (timeout_s_ != 0) {
             args.add("--timeout");
-            args.add(Integer.toString(timeout_s_));
+            args.add(String.valueOf(timeout_s_));
         }
         ProcessBuilder pb = new ProcessBuilder(args);
         if (workingDirectory_ != null) {
@@ -313,7 +324,8 @@ public class SlaveProviderProcessBuilder
 
     // Command-line arguments
     private ArrayList<File> fmus_;
-    private String domain_;
+    private String networkInterface_;
+    private int port_ = 0;
     private File slaveExecutable_;
     private File outputDirectory_;
     private int timeout_s_ = 0;
