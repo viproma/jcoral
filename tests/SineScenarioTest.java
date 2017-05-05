@@ -46,6 +46,11 @@ public class SineScenarioTest
         ScenarioBuilder scenarioBuilder = new ScenarioBuilder();
         scenarioBuilder.addEvent(6.0, "sine2", "w", new ScalarValue(2*Math.PI));
         scenarioBuilder.addEvent(3.0, "sine1", "b", new ScalarValue(3.0));
+        ScenarioBuilder.Event event = scenarioBuilder.getEvents().iterator().next();
+        assert(event.getTimePoint() == 6.0);
+        assert(event.getSlaveName().equals("sine2"));
+        assert(event.getVariableName().equals("w"));
+        assert(event.getNewValue().getRealValue() == 2*Math.PI);
 
         // Create a new execution and apply the model
         ExecutionOptions exeOptions = new ExecutionOptions();
