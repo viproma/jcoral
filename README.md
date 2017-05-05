@@ -2,7 +2,7 @@ JCoral
 ======
 JCoral is a Java interface to [Coral], a C++ library for performing
 distributed co-simulations.  The names and structure of JCoral's packages
-and classes closely matches those of the C++ API.
+and classes closely match those of the C++ API.
 
 JCoral does not yet have full support for all functionality in Coral,
 but this is in the works.  Currently, it is primarily the master API
