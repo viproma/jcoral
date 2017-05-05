@@ -8,9 +8,10 @@ package no.viproma.coral.master;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import no.viproma.coral.master.ScenarioEvent;
 import no.viproma.coral.model.ScalarValue;
@@ -144,6 +145,30 @@ public class ScenarioBuilder
     public Iterable<Event> getEvents()
     {
         return events_;
+    }
+
+    /**
+     * Convenience method which returns all events sorted and grouped by
+     * time point.
+     * <p>
+     * @return
+     *      A sorted map whose keys represent time points and whose values
+     *      are lists of events at those time points.
+     */
+    public SortedMap<Double, List<Event>> getEventsByTime()
+    {
+        SortedMap<Double, List<Event>> allEvents =
+            new TreeMap<Double, List<Event>>();
+        for (Event e : getEvents()) {
+            Double timePoint = Double.valueOf(e.getTimePoint());
+            List<Event> timePointEvents = allEvents.get(timePoint);
+            if (timePointEvents == null) {
+                timePointEvents = new ArrayList<Event>();
+                allEvents.put(timePoint, timePointEvents);
+            }
+            timePointEvents.add(e);
+        }
+        return allEvents;
     }
 
     /**

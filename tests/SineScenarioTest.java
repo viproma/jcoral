@@ -1,6 +1,8 @@
 import java.net.InetAddress;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
+import java.util.SortedMap;
 
 import no.viproma.coral.master.Execution;
 import no.viproma.coral.master.ExecutionOptions;
@@ -46,11 +48,19 @@ public class SineScenarioTest
         ScenarioBuilder scenarioBuilder = new ScenarioBuilder();
         scenarioBuilder.addEvent(6.0, "sine2", "w", new ScalarValue(2*Math.PI));
         scenarioBuilder.addEvent(3.0, "sine1", "b", new ScalarValue(3.0));
+
+        // Test different retrieval methods
         ScenarioBuilder.Event event = scenarioBuilder.getEvents().iterator().next();
         assert(event.getTimePoint() == 6.0);
         assert(event.getSlaveName().equals("sine2"));
         assert(event.getVariableName().equals("w"));
         assert(event.getNewValue().getRealValue() == 2*Math.PI);
+
+        SortedMap<Double, List<ScenarioBuilder.Event>> eventsByTime =
+            scenarioBuilder.getEventsByTime();
+        assert(eventsByTime.size() == 2);
+        assert(eventsByTime.get(3.0).size() == 1);
+        assert(eventsByTime.get(3.0).get(0).getSlaveName().equals("sine1"));
 
         // Create a new execution and apply the model
         ExecutionOptions exeOptions = new ExecutionOptions();
