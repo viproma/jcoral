@@ -125,8 +125,8 @@ public class ScenarioBuilder
      * Adds a variable value change event to the scenario.
      * <p>
      * This is a convenience function which creates a new {@link Event} object,
-     * forwarding all arguments to {@link Event#Event}, and adds the object
-     * to the scenario using {@link #addEvent(Event)}.
+     * forwarding all arguments to its constructor, and adds the object to the
+     * scenario using {@link #addEvent(Event)}.
      */
     public void addEvent(
         double timePoint,
