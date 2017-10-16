@@ -65,7 +65,7 @@ public class SineScenarioTest
         // Create a new execution and apply the model
         ExecutionOptions exeOptions = new ExecutionOptions();
         exeOptions.setSimTime(0.0, endTime);
-        try (Execution exe = new Execution("ModelBuilderTest", exeOptions)) {
+        try (Execution exe = new Execution("SineScenarioTest", exeOptions)) {
         ModelSlaveMap slaveMap =
             model.apply(exe, slaveInstantiationTimeout_ms, commandTimeout_ms);
 
