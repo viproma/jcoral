@@ -25,19 +25,31 @@ public class VariableSetting
     {
         variableID_ = variableID;
         value_ = value;
+        isConnectionChange_ = false;
         connectedOutput_ = null;
     }
 
     /**
-     * Indicates an input variable which should be connected to an output
-     * variable.
+     * Indicates an input variable which should be connected to, or
+     * disconnected from, an output variable.
+     * <p>
+     * Use the special value {@link #NO_CONNECTION} for {@code outputVariable}
+     * to indicate that an existing connection should be broken.  (If there was
+     * no connection to the variable in the first place, this has no effect.)
      */
     public VariableSetting(int inputVariableID, Variable outputVariable)
     {
         variableID_ = inputVariableID;
         value_ = null;
+        isConnectionChange_ = true;
         connectedOutput_ = outputVariable;
     }
+
+    /**
+     * A special value used with {@link #VariableSetting(int, Variable)}
+     * to indicate that a variable should be disconnected.
+     */
+    public static final Variable NO_CONNECTION = null;
 
     /** Returns the ID of the variable which is to be initialised/connected. */
     public int getVariableID() { return variableID_; }
@@ -49,11 +61,11 @@ public class VariableSetting
     public ScalarValue getValue() { return value_; }
 
     /** Returns whether the variable is to be connected. */
-    public boolean hasConnectedOutput() { return connectedOutput_ != null; }
+    public boolean isConnectionChange() { return isConnectionChange_; }
 
     /**
      * Returns the output variable to which the input variable should be
-     * connected.
+     * connected, or {@code null} if none.
      */
     public Variable getConnectedOutput()
     {
@@ -63,5 +75,6 @@ public class VariableSetting
 
     private int variableID_;
     private ScalarValue value_;
+    private boolean isConnectionChange_;
     private Variable connectedOutput_;
 }

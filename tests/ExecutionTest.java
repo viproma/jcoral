@@ -87,44 +87,68 @@ public class ExecutionTest
         SlaveID identID = slavesToAdd.get(1).getID();
 
         // Set a few variables.
-        List<VariableSetting> sineSetVarOps = new ArrayList<VariableSetting>();
-        sineSetVarOps.add(new VariableSetting(sineVariableIDs.get("a"), new ScalarValue(2.0)));
-        sineSetVarOps.add(new VariableSetting(sineVariableIDs.get("w"), new ScalarValue(2*Math.PI)));
+        List<VariableSetting> sineConfig = new ArrayList<VariableSetting>();
+        sineConfig.add(new VariableSetting(sineVariableIDs.get("a"), new ScalarValue(2.0)));
+        sineConfig.add(new VariableSetting(sineVariableIDs.get("w"), new ScalarValue(2*Math.PI)));
 
-        List<VariableSetting> identSetVarOps = new ArrayList<VariableSetting>();
-        identSetVarOps.add(new VariableSetting(
+        List<VariableSetting> identConfig = new ArrayList<VariableSetting>();
+        identConfig.add(new VariableSetting(
             identVariableIDs.get("realIn"), new Variable(sineID, sineVariableIDs.get("y"))));
-        identSetVarOps.add(new VariableSetting(
+        identConfig.add(new VariableSetting(
             identVariableIDs.get("integerIn"), new ScalarValue(123)));
-        identSetVarOps.add(new VariableSetting(
+        identConfig.add(new VariableSetting(
             identVariableIDs.get("booleanIn"), new ScalarValue(true)));
-        identSetVarOps.add(new VariableSetting(
+        identConfig.add(new VariableSetting(
             identVariableIDs.get("stringIn"), new ScalarValue("Hello World")));
 
         List<SlaveConfig> slaveConfigs = new ArrayList<SlaveConfig>();
-        slaveConfigs.add(new SlaveConfig(sineID,  sineSetVarOps));
-        slaveConfigs.add(new SlaveConfig(identID, identSetVarOps));
+        slaveConfigs.add(new SlaveConfig(sineID,  sineConfig));
+        slaveConfigs.add(new SlaveConfig(identID, identConfig));
         exe.reconfigure(slaveConfigs, commandTimeout_ms);
 
-        // Run simulation
+        // Run half of the simulation
+        SimulationProgressMonitor progress = new SimulationProgressMonitor() {
+            final int percentStep_ = 10;
+            int nextPercent_ = 0;
+            public boolean progress(double t) {
+                double percent = 100.0 * t / endTime;
+                if (percent >= nextPercent_) {
+                    System.out.println("t = " + t + " (" + nextPercent_ + "%)");
+                    nextPercent_ += percentStep_;
+                }
+                return true;
+            }
+        };
         exe.simulate(
-            endTime,
+            endTime / 2,
             stepSize,
             null,
             stepTimeout_ms,
             commandTimeout_ms,
-            new SimulationProgressMonitor() {
-                final int percentStep_ = 10;
-                int nextPercent_ = 0;
-                public boolean progress(double t) {
-                    double percent = 100.0 * t / endTime;
-                    if (percent >= nextPercent_) {
-                        System.out.println("t = " + t + " (" + nextPercent_ + "%)");
-                        nextPercent_ += percentStep_;
-                    }
-                    return true;
-                }
-            });
+            progress);
+
+        // Change connections
+        List<VariableSetting> sineConfig2 = new ArrayList<VariableSetting>();
+        sineConfig2.add(new VariableSetting(
+            sineVariableIDs.get("x"), new Variable(identID, identVariableIDs.get("realOut"))));
+
+        List<VariableSetting> identConfig2 = new ArrayList<VariableSetting>();
+        identConfig2.add(new VariableSetting(
+            identVariableIDs.get("realIn"), VariableSetting.NO_CONNECTION));
+
+        List<SlaveConfig> slaveConfigs2 = new ArrayList<SlaveConfig>();
+        slaveConfigs2.add(new SlaveConfig(sineID, sineConfig2));
+        slaveConfigs2.add(new SlaveConfig(identID, identConfig2));
+        exe.reconfigure(slaveConfigs2, commandTimeout_ms);
+
+        // Run the remaining half of the simulation
+        exe.simulate(
+            endTime / 2,
+            stepSize,
+            null,
+            stepTimeout_ms,
+            commandTimeout_ms,
+            progress);
 
         // Close the try-with-resources statements we've opened above
         }}
