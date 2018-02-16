@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import no.viproma.coral.Logging;
 import no.viproma.coral.master.ExecutionOptions;
 import no.viproma.coral.master.SimulationProgressMonitor;
 import no.viproma.coral.model.SlaveID;
@@ -61,6 +62,12 @@ public final class Execution implements AutoCloseable
         this(executionName, new ExecutionOptions());
     }
 
+    @Override
+    protected void finalize()
+    {
+        if (nativePtr_ != 0) Logging.logNotClosedOnFinalization(getClass());
+    }
+
     /**
      * Terminates the execution and releases native
      * resources (such as memory) associated with this object.
@@ -68,6 +75,7 @@ public final class Execution implements AutoCloseable
      * After this function has been called, any attempt to use the object
      * will result in an {@link IllegalStateException}.
      */
+    @Override
     public void close() throws Exception
     {
         if (nativePtr_ != 0) {

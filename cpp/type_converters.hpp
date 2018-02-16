@@ -11,8 +11,16 @@
 #define JCORAL_TYPE_CONVERTERS_HPP
 
 #include <cassert>
+#include <cstdint>
+#include <exception>
+#include <limits>
+#include <memory>
+#include <type_traits>
+
 #include <boost/numeric/conversion/cast.hpp>
 #include <coral/model.hpp>
+#include <coral/net.hpp>
+
 #include "jni_helpers.hpp"
 
 
@@ -299,6 +307,63 @@ private:
 };
 
 
+// Converts between coral::model::SlaveTypeDescription
+// and no.viproma.coral.model.SlaveTypeDescription
+class SlaveTypeDescriptionConverter
+{
+public:
+    SlaveTypeDescriptionConverter(JNIEnv* env)
+        : env_{env}
+        , vdConv_{env}
+        , class_{
+            jcoral::FindClass(env_, "no/viproma/coral/model/SlaveTypeDescription")}
+        , constructor_{
+            jcoral::GetMethodID(env_, class_, "<init>",
+                "("
+                    "Ljava/lang/String;"
+                    "Ljava/lang/String;"
+                    "Ljava/lang/String;"
+                    "Ljava/lang/String;"
+                    "Ljava/lang/String;"
+                    "[Lno/viproma/coral/model/VariableDescription;"
+                ")V")}
+    {
+    }
+
+    jobject ToJava(const coral::model::SlaveTypeDescription& cst) const
+    {
+        const auto variableDescriptionRange = cst.Variables();
+        const auto variableDescriptionVector =
+            std::vector<coral::model::VariableDescription>{
+                begin(variableDescriptionRange),
+                end(variableDescriptionRange)};
+        const auto variables = jcoral::ToJArray<coral::model::VariableDescription>(
+            env_,
+            jcoral::FindClass(env_, "no/viproma/coral/model/VariableDescription"),
+            begin(variableDescriptionVector),
+            end(variableDescriptionVector),
+            [this] (const coral::model::VariableDescription& vd)
+            {
+                return vdConv_.ToJava(vd);
+            });
+
+        return jcoral::NewObject(env_, class_, constructor_,
+            jcoral::ToJString(env_, cst.Name()),
+            jcoral::ToJString(env_, cst.UUID()),
+            jcoral::ToJString(env_, cst.Description()),
+            jcoral::ToJString(env_, cst.Author()),
+            jcoral::ToJString(env_, cst.Version()),
+            variables);
+    }
+
+private:
+    JNIEnv* env_;
+    jcoral::VariableDescriptionConverter vdConv_;
+    jclass class_;
+    jmethodID constructor_;
+};
+
+
 // Converts between coral::model::Variable and no.viproma.coral.model.Variable
 class VariableConverter
 {
@@ -434,6 +499,84 @@ private:
     jmethodID getControlEndpoint_;
     jmethodID getDataPubEndpoint_;
 };
+
+
+// =============================================================================
+// Facilities to maintain pointers to C++ objects as integer handles inside
+// Java objects.
+// =============================================================================
+
+
+// Assumes that the object pointed to was already constructed on the heap
+// using `new`, and can therefore be managed in the same manner as one wrapped
+// by `WrapCppObject()`, and converts the pointer value to a Java long integer.
+// (Specifically, it should be possible to safely delete it with
+// `DeleteWrappedCppObject()`.)
+template<typename T>
+jlong AssumeWrappedCppObject(JNIEnv* env, T* ptr)
+{
+    JCORAL_REQUIRE(env, ptr != nullptr);
+    const auto ptrVal = reinterpret_cast<std::intptr_t>(ptr);
+    JCORAL_REQUIRE(env, ptrVal <= std::numeric_limits<jlong>::max());
+    return static_cast<jlong>(ptrVal);
+}
+
+
+// Creates an object of type `remove_reference_t<T>` on the heap using the
+// `new` operator, forwarding `obj` to its constructor.
+// Returns a Java long integer that holds the numeric value of the pointer.
+//
+// To later obtain a reference to the wrapped object, it is recommended to use
+// `UnwrapCppObject()`.  To delete the object, `DeleteWrappedCppObject()`
+// should be used.
+template<typename T>
+jlong WrapCppObject(JNIEnv* env, T&& obj)
+{
+    using U = std::remove_cv_t<std::remove_reference_t<T>>;
+    return AssumeWrappedCppObject(env, new U(std::forward<T>(obj)));
+}
+
+
+// Obtains a reference to the object pointed to by a pointer whose numerical
+// value is given by `ptrVal`.  The type `T` must be specified, and it is up
+// to the caller to ensure that it is the correct type.
+template<typename T>
+T& UnwrapCppObject(jlong ptrVal)
+{
+    EnforceNotNull(ptrVal);
+    return *reinterpret_cast<T*>(ptrVal);
+}
+
+
+// Deletes the object referred to by the pointer whose numerical value is
+// given by `ptrVal`.  The type `T` must be specified, and it is up to the
+// caller to ensure that it is the correct type.
+template<typename T>
+void DeleteWrappedCppObject(jlong ptrVal)
+{
+    delete reinterpret_cast<T*>(ptrVal);
+}
+
+
+// Constructs a Java object that has a one-to-one relationship with a C++
+// object, assuming that the Java class has a constructor that takes the
+// pointer to the C++ object (converted to long) as its sole parameter.
+template<typename T>
+jobject ConstructWithWrappedCppObject(JNIEnv* env, const char* jClassName, T&& obj)
+{
+    // We use unique_ptr to ensure exception safety inside this function.
+    using U = std::remove_cv_t<std::remove_reference_t<T>>;
+    auto wrapped = std::make_unique<U>(std::forward<T>(obj));
+
+    const auto jClass = jcoral::FindClass(env, jClassName);
+    const auto jCtor = jcoral::GetMethodID(env, jClass, "<init>", "(J)V");
+    const auto jObj = jcoral::NewObject(
+        env, jClass, jCtor, AssumeWrappedCppObject(env, wrapped.get()));
+
+    // No possibility of exceptions below this point.
+    wrapped.release();
+    return jObj;
+}
 
 
 } // namespace

@@ -72,8 +72,8 @@ public class ModelBuilderTest
         assert (slaveNames.first().equals("id"));
         assert (slaveNames.last().equals("sine"));
 
-        assert (model.getSlaveTypeOf("id").getName().equals("no.viproma.demo.identity"));
-        assert (model.getSlaveTypeOf("sine").getName().equals("no.viproma.demo.sine"));
+        assert (model.getSlaveTypeOf("id").getSlaveTypeDescription().getName().equals("no.viproma.demo.identity"));
+        assert (model.getSlaveTypeOf("sine").getSlaveTypeDescription().getName().equals("no.viproma.demo.sine"));
         try { model.getSlaveTypeOf("foo"); assert(false); } catch (EntityNotFoundException e) { }
 
         assert (model.getInitialVariableValue("sine", "a").getRealValue() == 2.0);
