@@ -411,9 +411,15 @@ public:
         , getVariableID_{
             jcoral::GetMethodID(
                 env, variableSettingClass_, "getVariableID", "()I")}
+        , hasValue_{
+            jcoral::GetMethodID(
+                env, variableSettingClass_, "hasValue", "()Z")}
         , getValue_{
             jcoral::GetMethodID(
                 env, variableSettingClass_, "getValue", "()Lno/viproma/coral/model/ScalarValue;")}
+        , isConnectionChange_{
+            jcoral::GetMethodID(
+                env, variableSettingClass_, "isConnectionChange", "()Z")}
         , getConnectedOutput_{
             jcoral::GetMethodID(
                 env, variableSettingClass_, "getConnectedOutput", "()Lno/viproma/coral/model/Variable;")}
@@ -424,31 +430,39 @@ public:
     {
         assert(env_->IsInstanceOf(obj, variableSettingClass_));
         const auto jVariableID = jcoral::CallIntMethod(env_, obj, getVariableID_);
-        const auto jValue = jcoral::CallObjectMethod(env_, obj, getValue_);
-        const auto jConnectedOutput =
-            jcoral::CallObjectMethod(env_, obj, getConnectedOutput_);
+        const auto jHasValue = jcoral::CallBooleanMethod(env_, obj, hasValue_);
+        const auto jIsConnectionChange = jcoral::CallBooleanMethod(env_, obj, isConnectionChange_);
+
+        const auto jValue = jHasValue
+            ? jcoral::CallObjectMethod(env_, obj, getValue_)
+            : nullptr;
+        const auto jConnectedOutput = jIsConnectionChange
+            ? jcoral::CallObjectMethod(env_, obj, getConnectedOutput_)
+            : nullptr;
 
         const auto variableID =
             boost::numeric_cast<coral::model::VariableID>(jVariableID);
-        if (jValue) {
-            if (jConnectedOutput) {
+        if (jHasValue) {
+            if (jIsConnectionChange) {
                 return coral::model::VariableSetting(
                     variableID,
                     scalarConv_.ToCpp(jValue),
-                    varConv_.ToCpp(jConnectedOutput));
+                    jConnectedOutput != nullptr
+                        ? varConv_.ToCpp(jConnectedOutput)
+                        : coral::model::Variable());
             } else {
                 return coral::model::VariableSetting(
                     variableID,
                     scalarConv_.ToCpp(jValue));
             }
+        } else if (jIsConnectionChange) {
+            return coral::model::VariableSetting(
+                variableID,
+                jConnectedOutput != nullptr
+                    ? varConv_.ToCpp(jConnectedOutput)
+                    : coral::model::Variable());
         } else {
-            if (jConnectedOutput) {
-                return coral::model::VariableSetting(
-                    variableID,
-                    varConv_.ToCpp(jConnectedOutput));
-            } else {
-                JCORAL_FATAL(env_, "Invalid VariableSetting object encountered");
-            }
+            JCORAL_FATAL(env_, "Invalid VariableSetting object encountered");
         }
 
     }
@@ -459,7 +473,9 @@ private:
     VariableConverter varConv_;
     jclass variableSettingClass_;
     jmethodID getVariableID_;
+    jmethodID hasValue_;
     jmethodID getValue_;
+    jmethodID isConnectionChange_;
     jmethodID getConnectedOutput_;
 };
 
