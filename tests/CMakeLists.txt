@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.0.0)
 
 set(tests
     "ExecutionTest"
+    "InProcessExecutionTest"
     "ListSlaveTypeInfo"
     "ModelBuilderTest"
     "ProcessCaptureTest"
@@ -35,6 +36,10 @@ foreach(className ${tests})
             "-Djava.library.path=$<TARGET_FILE_DIR:jcoral>"
             "-enableassertions"
             "${className}"
+    )
+    set_property(TEST "${testName}" PROPERTY ENVIRONMENT
+        "JCORAL_TEST_DATA_DIR=${CMAKE_CURRENT_SOURCE_DIR}/data"
+        "JCORAL_TEST_OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/test-output"
     )
     list(APPEND testSources "${javaFile}")
 endforeach()

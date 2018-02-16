@@ -1,6 +1,7 @@
 import java.net.InetAddress;
 
 import no.viproma.coral.master.ProviderCluster;
+import no.viproma.coral.model.SlaveTypeDescription;
 import no.viproma.coral.model.VariableDescription;
 
 
@@ -17,13 +18,14 @@ public class ListSlaveTypeInfo
             Thread.sleep(2000);
             for (ProviderCluster.SlaveType st :
                     cluster.getSlaveTypes(commandTimeout_ms)) {
-                System.out.println(st.getName());
-                System.out.println("  UUID     : " + st.getUUID());
-                System.out.println("  Descr.   : " + st.getDescription());
-                System.out.println("  Author   : " + st.getAuthor());
-                System.out.println("  Version  : " + st.getVersion());
+                SlaveTypeDescription std = st.getSlaveTypeDescription();
+                System.out.println(std.getName());
+                System.out.println("  UUID     : " + std.getUUID());
+                System.out.println("  Descr.   : " + std.getDescription());
+                System.out.println("  Author   : " + std.getAuthor());
+                System.out.println("  Version  : " + std.getVersion());
                 System.out.println("  Variables:");
-                for (VariableDescription vd : st.getVariables()) {
+                for (VariableDescription vd : std.getVariables()) {
                     printVarDesc("    ", vd);
                 }
                 System.out.println("  Providers:");

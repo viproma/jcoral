@@ -49,18 +49,13 @@ namespace
     public:
         SlaveTypeConverter(JNIEnv* env)
             : env_{env}
-            , vdConv_{env}
+            , stdConv_{env}
             , class_{
                 jcoral::FindClass(env_, "no/viproma/coral/master/ProviderCluster$SlaveType")}
             , constructor_{
                 jcoral::GetMethodID(env_, class_, "<init>",
                     "("
-                        "Ljava/lang/String;"
-                        "Ljava/lang/String;"
-                        "Ljava/lang/String;"
-                        "Ljava/lang/String;"
-                        "Ljava/lang/String;"
-                        "[Lno/viproma/coral/model/VariableDescription;"
+                        "Lno/viproma/coral/model/SlaveTypeDescription;"
                         "[Ljava/lang/String;"
                     ")V")}
         {
@@ -68,21 +63,6 @@ namespace
 
         jobject ToJava(const coral::master::ProviderCluster::SlaveType& cst) const
         {
-            const auto variableDescriptionRange = cst.description.Variables();
-            const auto variableDescriptionVector =
-                std::vector<coral::model::VariableDescription>{
-                    begin(variableDescriptionRange),
-                    end(variableDescriptionRange)};
-            const auto variables = jcoral::ToJArray<coral::model::VariableDescription>(
-                env_,
-                jcoral::FindClass(env_, "no/viproma/coral/model/VariableDescription"),
-                begin(variableDescriptionVector),
-                end(variableDescriptionVector),
-                [this] (const coral::model::VariableDescription& vd)
-                {
-                    return vdConv_.ToJava(vd);
-                });
-
             auto providers = jcoral::ToJArray<std::string>(
                 env_,
                 jcoral::FindClass(env_, "java/lang/String"),
@@ -91,18 +71,13 @@ namespace
                 [this] (const std::string& s) { return jcoral::ToJString(env_, s); });
 
             return jcoral::NewObject(env_, class_, constructor_,
-                jcoral::ToJString(env_, cst.description.Name()),
-                jcoral::ToJString(env_, cst.description.UUID()),
-                jcoral::ToJString(env_, cst.description.Description()),
-                jcoral::ToJString(env_, cst.description.Author()),
-                jcoral::ToJString(env_, cst.description.Version()),
-                variables,
+                stdConv_.ToJava(cst.description),
                 providers);
         }
 
     private:
         JNIEnv* env_;
-        jcoral::VariableDescriptionConverter vdConv_;
+        jcoral::SlaveTypeDescriptionConverter stdConv_;
         jclass class_;
         jmethodID constructor_;
     };

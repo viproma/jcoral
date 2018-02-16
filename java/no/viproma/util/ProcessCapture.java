@@ -81,6 +81,7 @@ public class ProcessCapture implements Callable<ProcessOutput>
      * @throws IllegalStateException
      *      If the method is called more than once.
      */
+    @Override
     public ProcessOutput call() throws IOException
     {
         if (stdout_ == null && stderr_ == null) {

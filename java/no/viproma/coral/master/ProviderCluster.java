@@ -9,6 +9,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 
+import no.viproma.coral.Logging;
+import no.viproma.coral.model.SlaveTypeDescription;
 import no.viproma.coral.model.VariableDescription;
 import no.viproma.coral.net.SlaveLocator;
 
@@ -43,25 +45,64 @@ public class ProviderCluster implements AutoCloseable
     /** Information about a slave type. */
     public static class SlaveType
     {
-        /** Returns the slave type's name. */
-        public String getName() { return name_; }
+        /**
+         *  Returns the slave type's name.
+         *
+         *  @deprecated
+         *      Use {@code getSlaveTypeDescription().getName()} instead.
+         */
+        @Deprecated
+        public String getName() { return getSlaveTypeDescription().getName(); }
 
-        /** Returns the slave type's unique identifier. */
-        public String getUUID() { return uuid_; }
+        /**
+         *  Returns the slave type's unique identifier.
+         *
+         *  @deprecated
+         *      Use {@code getSlaveTypeDescription().getUUID()} instead.
+         */
+        @Deprecated
+        public String getUUID() { return getSlaveTypeDescription().getUUID(); }
 
-        /** Returns a textual description of the slave type. */
-        public String getDescription() { return description_; }
+        /**
+         *  Returns a textual description of the slave type.
+         *
+         *  @deprecated
+         *      Use {@code getSlaveTypeDescription().getDescription()} instead.
+         */
+        @Deprecated
+        public String getDescription() { return getSlaveTypeDescription().getDescription(); }
 
-        /** Returns author information. */
-        public String getAuthor() { return author_; }
+        /**
+         *  Returns author information.
+         *
+         *  @deprecated
+         *      Use {@code getSlaveTypeDescription().getAuthor()} instead.
+         */
+        @Deprecated
+        public String getAuthor() { return getSlaveTypeDescription().getAuthor(); }
 
-        /** Returns the particular version of this slave type. */
-        public String getVersion() { return version_; }
+        /**
+         *  Returns the particular version of this slave type.
+         *
+         *  @deprecated
+         *      Use {@code getSlaveTypeDescription().getVersion()} instead.
+         */
+        @Deprecated
+        public String getVersion() { return getSlaveTypeDescription().getVersion(); }
 
-        /** Returns descriptions of each of the slave type's variables. */
-        public Iterable<VariableDescription> getVariables()
+        /**
+         *  Returns descriptions of each of the slave type's variables.
+         *
+         *  @deprecated
+         *      Use {@code getSlaveTypeDescription().getVariables()} instead.
+         */
+        @Deprecated
+        public Iterable<VariableDescription> getVariables() { return getSlaveTypeDescription().getVariables(); }
+
+        /** Returns a description of this slave type. */
+        public SlaveTypeDescription getSlaveTypeDescription()
         {
-            return Arrays.asList(variables_);
+            return description_;
         }
 
         /** Returns the IDs of slave providers that provide this slave type. */
@@ -71,29 +112,14 @@ public class ProviderCluster implements AutoCloseable
         }
 
         SlaveType(
-            String name,
-            String uuid,
-            String description,
-            String author,
-            String version,
-            VariableDescription[] variables,
+            SlaveTypeDescription description,
             String[] providers)
         {
-            name_ = name;
-            uuid_ = uuid;
             description_ = description;
-            author_ = author;
-            version_ = version;
-            variables_ = variables;
             providers_ = providers;
         }
 
-        private String name_;
-        private String uuid_;
-        private String description_;
-        private String author_;
-        private String version_;
-        private VariableDescription[] variables_;
+        private SlaveTypeDescription description_;
         private String[] providers_;
     }
 
@@ -126,6 +152,12 @@ public class ProviderCluster implements AutoCloseable
         this(new InetSocketAddress(bindAddress, 10272));
     }
 
+    @Override
+    protected void finalize()
+    {
+        if (nativePtr_ != 0) Logging.logNotClosedOnFinalization(getClass());
+    }
+
     /**
      *  Shuts down the communication interface and releases native resources
      *  (such as memory) associated with this object.
@@ -133,6 +165,7 @@ public class ProviderCluster implements AutoCloseable
      *  After this function has been called, any attempt to use the class will
      *  result in an {@link IllegalStateException}.
      */
+    @Override
     public void close() throws Exception
     {
         if (nativePtr_ != 0) {

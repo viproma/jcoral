@@ -20,6 +20,7 @@
 #include <vector>
 
 #include <jni.h>
+#include <boost/numeric/conversion/cast.hpp>
 
 
 // Compiler-agnostic noreturn attribute

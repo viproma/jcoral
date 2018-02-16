@@ -548,7 +548,8 @@ public class ModelBuilder
         {
             this.clusterSlaveType = clusterSlaveType;
             variables = new HashMap<String, VariableDescription>();
-            for (VariableDescription v : clusterSlaveType.getVariables()) {
+            for (VariableDescription v :
+                    clusterSlaveType.getSlaveTypeDescription().getVariables()) {
                 variables.put(v.getName(), v);
             }
         }
@@ -578,9 +579,10 @@ public class ModelBuilder
                 // We only update our map if the slave type isn't there already,
                 // so the objects in clusterSlaveTypes_ don't get out of sync
                 // with those stored in modelSlaveTypes_.
-                if (!clusterSlaveTypes_.containsKey(st.getName())) {
-                    clusterSlaveTypes_.put(st.getName(), st);
-                    if (st.getName().equals(typeName)) ret = st;
+                String stName = st.getSlaveTypeDescription().getName();
+                if (!clusterSlaveTypes_.containsKey(stName)) {
+                    clusterSlaveTypes_.put(stName, st);
+                    if (stName.equals(typeName)) ret = st;
                 }
             }
         }

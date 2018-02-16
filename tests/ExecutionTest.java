@@ -43,7 +43,7 @@ public class ExecutionTest
             new HashMap<String, ProviderCluster.SlaveType>();
         for (ProviderCluster.SlaveType st :
                 cluster.getSlaveTypes(commandTimeout_ms)) {
-            slaveTypes.put(st.getName(), st);
+            slaveTypes.put(st.getSlaveTypeDescription().getName(), st);
         }
 
         // Make a list of variables for the "sine" model type
@@ -52,7 +52,7 @@ public class ExecutionTest
             throw new Exception("Slave type 'no.viproma.demo.sine' not available");
         }
         Map<String, Integer> sineVariableIDs = new HashMap<String, Integer>();
-        for (VariableDescription varDesc : sine.getVariables()) {
+        for (VariableDescription varDesc : sine.getSlaveTypeDescription().getVariables()) {
             sineVariableIDs.put(varDesc.getName(), varDesc.getID());
         }
 
@@ -62,7 +62,7 @@ public class ExecutionTest
             throw new Exception("Slave type 'no.viproma.demo.identity' not available");
         }
         Map<String, Integer> identVariableIDs = new HashMap<String, Integer>();
-        for (VariableDescription varDesc : ident.getVariables()) {
+        for (VariableDescription varDesc : ident.getSlaveTypeDescription().getVariables()) {
             identVariableIDs.put(varDesc.getName(), varDesc.getID());
         }
 

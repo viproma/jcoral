@@ -4,12 +4,19 @@ set(package "no.viproma")
 
 # Java classes with native code
 set(nativeClasses
+    "${package}.coral.fmi.FMU"
+    "${package}.coral.fmi.Importer"
     "${package}.coral.master.Execution"
     "${package}.coral.master.ProviderCluster"
+    "${package}.coral.slave.InProcessRunner"
+    "${package}.coral.slave.InstanceFactory"
+    "${package}.coral.slave.OpaqueInstance"
 )
 
 # Java classes without native code
 set(normalClasses
+    "${package}.coral.Logging"
+    "${package}.coral.fmi.FMIVersion"
     "${package}.coral.master.AddedSlave"
     "${package}.coral.master.EntityNotFoundException"
     "${package}.coral.master.ExecutionOptions"
@@ -24,12 +31,15 @@ set(normalClasses
     "${package}.coral.model.DataType"
     "${package}.coral.model.ScalarValue"
     "${package}.coral.model.SlaveID"
+    "${package}.coral.model.SlaveTypeDescription"
     "${package}.coral.model.Variability"
     "${package}.coral.model.VariableDescription"
     "${package}.coral.model.Variable"
     "${package}.coral.model.VariableSetting"
     "${package}.coral.net.SlaveLocator"
     "${package}.coral.provider.SlaveProviderProcessBuilder"
+    "${package}.coral.slave.Instance"
+    "${package}.coral.slave.OpaqueInstance"
     "${package}.util.ProcessCapture"
     "${package}.util.ProcessOutput"
 )
