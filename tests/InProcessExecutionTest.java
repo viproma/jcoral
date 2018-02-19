@@ -19,15 +19,18 @@ public class InProcessExecutionTest
     {
         public Slave(FMU fmu, String outputFilePrefix) throws Exception
         {
+            // baseSlave will be closed by InstanceFactory.newCSVLoggingInstance()
+            // (unless it throws, which is why we call close() in the exception
+            // handler just to be safe).
+            Instance baseSlave = fmu.instantiateSlave();
             try {
-                baseSlave_ = fmu.instantiateSlave();
-                loggingSlave_ = InstanceFactory.newCSVLoggingInstance(baseSlave_, outputFilePrefix);
-                runner_ = new InProcessRunner(loggingSlave_);
+                slave_ = InstanceFactory.newCSVLoggingInstance(baseSlave, outputFilePrefix);
+                runner_ = new InProcessRunner(slave_);
                 locator_ = runner_.getLocator();
             } catch (Exception e) {
-                if (runner_ != null)        runner_.close();
-                if (loggingSlave_ != null)  loggingSlave_.close();
-                if (baseSlave_ != null)     baseSlave_.close();
+                if (runner_ != null)    runner_.close();
+                if (slave_ != null)     slave_.close();
+                baseSlave.close();
                 throw e;
             }
         }
@@ -42,15 +45,13 @@ public class InProcessExecutionTest
             try (
                 // Acquire the resources to ensure they are released at the
                 // end of this function.
-                Instance baseSlave = baseSlave_;
-                Instance loggingSlave = loggingSlave_;
+                Instance slave = slave_;
                 InProcessRunner runner = runner_;
             ) {
                 // Make sure that this object is unusable after run() has
                 // been called.
                 runner_ = null;
-                loggingSlave_ = null;
-                baseSlave_ = null;
+                slave_ = null;
 
                 // Run the slave
                 runner.run();
@@ -61,8 +62,7 @@ public class InProcessExecutionTest
             }
         }
 
-        private Instance baseSlave_;
-        private Instance loggingSlave_;
+        private Instance slave_;
         private InProcessRunner runner_;
         private SlaveLocator locator_;
     }
