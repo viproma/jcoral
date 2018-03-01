@@ -10,6 +10,7 @@ set(nativeClasses
     "${package}.coral.master.ProviderCluster"
     "${package}.coral.slave.InProcessRunner"
     "${package}.coral.slave.InstanceFactory"
+    "${package}.coral.slave.NetworkedRunner"
     "${package}.coral.slave.OpaqueInstance"
 )
 
