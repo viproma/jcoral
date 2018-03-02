@@ -1,5 +1,4 @@
 #include <stdexcept>
-#include <random>
 #include <coral/net.hpp>
 #include <coral/slave/runner.hpp>
 
