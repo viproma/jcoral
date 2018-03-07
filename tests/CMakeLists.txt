@@ -5,6 +5,7 @@ set(tests
     "InProcessExecutionTest"
     "ListSlaveTypeInfo"
     "ModelBuilderTest"
+    "NetworkedExecutionTest"
     "ProcessCaptureTest"
     "SineScenarioTest"
 )

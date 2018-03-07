@@ -9,6 +9,7 @@ add_library(jcoral MODULE
     "master_ProviderCluster.cpp"
     "slave_InProcessRunner.cpp"
     "slave_InstanceFactory.cpp"
+    "slave_NetworkedRunner.cpp"
     "slave_OpaqueInstance.cpp"
 )
 add_dependencies(jcoral headers)
