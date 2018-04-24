@@ -1,2 +1,2 @@
 Tested and known to work with the following Coral revision:
-9c0be7f9563b0499d524403b30ed9d084e091b64 (2017-12-15)
+067e9838ea7680b748d91a1d82910b602efe8d9c v0.9.0 (2018-04-23)
