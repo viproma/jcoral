@@ -21,6 +21,7 @@ target_include_directories(jcoral PRIVATE
 target_link_libraries(jcoral
     ${JAVA_JVM_LIBRARY}
     coral
+    "protobuf::libprotobuf"
     ${Boost_LIBRARIES}
 )
 if(WIN32)
