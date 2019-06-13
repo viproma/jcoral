@@ -96,8 +96,8 @@ namespace
             const
         {
             assert(env_->IsInstanceOf(tgt, addedSlaveClass_));
-            if (src.id != coral::model::INVALID_SLAVE_ID) {
-                jcoral::CallVoidMethod(env_, tgt, setID_, siConv_.ToJava(src.id));
+            if (src.info.ID() != coral::model::INVALID_SLAVE_ID) {
+                jcoral::CallVoidMethod(env_, tgt, setID_, siConv_.ToJava(src.info.ID()));
             } else {
                 jcoral::CallVoidMethod(env_, tgt, setID_, nullptr);
             }
