@@ -1,3 +1,5 @@
+**NOTE:** Coral and JCoral are no longer maintained, as they have been superseded by the [_Open Simulation Platform_](https://opensimulationplatform.com). More specifically, the library part of Coral has been superseded by [_libcosim_](https://github.com/open-simulation-platform/libcosim), and [_cosim4j_](https://github.com/open-simulation-platform/cosim4j) is a JVM interface for _libcosim_.
+
 JCoral
 ======
 JCoral is a Java interface to [Coral], a C++ library for performing
